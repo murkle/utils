@@ -15,7 +15,7 @@ require("https://cdn.jsdelivr.net/gh/neocotic/qrious/dist/qrious.min.js", functi
 			level: 'H',
 			padding: 25,
 			size: 500,
-			value: 'window.location.href'
+			value: window.location.href
 		});
 		openImageInLightBox(qr.image.src);
 	});
