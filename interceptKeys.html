@@ -1,0 +1,501 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name=viewport content="width=device-width,initial-scale=1">
+    <meta charset="utf-8" />
+    <script src="https://www.geogebra.org/apps/deployggb.js"></script>
+    <script>
+        if (window.location.href.startsWith("http:")) {
+
+            window.location.href = window.location.href.replace("http:", "https:");
+
+        }
+    </script>
+	<script src="jszip.js"></script>
+<script src="jszip-utils.js"></script>
+</head>
+
+<body>
+    <div id="ggbApplet"></div>
+    <br/><div id="title"></div>
+   <br/><div id="warning"></div>
+
+    <script>
+	
+	function checkSetting(settings, setting) {
+
+console.log("checking " + setting + ": " + settings[setting]);
+if (settings[setting]) {
+document.getElementById("warning").innerHTML+= '<br><font size="20" color="red">'+setting+' is enabled, please check.</font>';
+
+}
+
+}
+	
+function getUrl(id) {
+  var xhttp = new XMLHttpRequest();
+  
+  xhttp.onreadystatechange = function() {
+  if (this.readyState == 4 && this.status == 200) {
+   var response = xhttp.responseText;
+  
+  if (response) {
+	response = JSON.parse(response);
+	console.log(response);
+	var elements = response.elements;
+	var applet = elements[0];
+	var settings = applet.settings;
+	
+	// all these should be false in most cases
+	checkSetting(settings, "showResetIcon");
+	checkSetting(settings, "enableRightClick");
+	checkSetting(settings, "showToolBar");
+	checkSetting(settings, "showMenuBar");
+	checkSetting(settings, "showAlgebraInput");
+	checkSetting(settings, "enableShiftDragZoom");
+	
+	
+	
+	
+	
+	var filename = applet.url;
+	var previewUrl = applet.previewUrl;
+	
+  }
+  //alert(filename);
+  loadZip(filename);
+  }
+};
+  
+  
+  xhttp.open("GET", "https://api.geogebra.org/v1.0/worksheets/"+id+"?scope=basic&embed=actions", true);
+  xhttp.send();
+  
+
+  
+}
+	
+	function loadZip(filename) {
+
+var promise = new JSZip.external.Promise(function (resolve, reject) {
+    JSZipUtils.getBinaryContent(filename, function(err, data) {
+        if (err) {
+            reject(err);
+        } else {
+            resolve(data);
+        }
+    });
+});
+
+promise.then(JSZip.loadAsync)                     
+.then(function(zip) {
+    return zip.file("geogebra_javascript.js").async("string"); 
+})
+.then(function success(text) {                    
+    if(text != "function ggbOnInit() {}\n" && text != "function ggbOnInit() {}") {
+		  document.getElementById("warning").innerHTML+= '<br><font size="20" color="red">Global JavaScript is defined, please check:'+text+'</font>';
+	}
+	//alert(text);
+}, function error(e) {
+    // do nothing
+});
+
+promise.then(JSZip.loadAsync)                     
+.then(function(zip) {
+    return zip.file("geogebra.xml").async("string"); 
+})
+.then(function success(text) {     
+
+
+if (id=="sqjyzu5f") {
+	console.log(text);
+}
+
+// split into individual lines    
+lines = text.match(/[^\r\n]+/g);           
+
+for (var i = 0 ; i < lines.length ; i++) {
+
+var line = lines[i];
+
+var isCommandInput = line.indexOf("<input ") > 0;
+
+/*
+if (line.indexOf('<expression label="correct"') > -1) {
+	//alert(line);
+	document.getElementById("warning").innerHTML+= '<br>' + sanitise(line);
+}
+
+
+var bracketsBalanced = bracketsCheckNotNeeded(line) || isBalancedParenthesis(line);
+
+if (!bracketsBalanced) {
+		  document.getElementById("warning").innerHTML+= '<br><font color="red">Brackets don\'t seem to be matched, please check '+sanitise(line)+'</font>';		  
+}
+
+if (line.indexOf('randomResult="{&quot;') > 0) {
+  document.getElementById("warning").innerHTML+= '<br><font color="red">Please change Shuffle(list of texts) to Shuffle(list of numbers)</font>';		  
+}*/
+
+
+console.log(line);
+var index = line.indexOf("random()");
+if (index == -1) index = line.indexOf("Random[");
+// probably not needed, encoded as Random[ in XML
+if (index == -1) index = line.indexOf("RandomBetween[");
+if (index == -1) index = line.indexOf("Shuffle[");
+if (index == -1) index = line.indexOf("RandomElement[");
+if (index == -1) index = line.indexOf("RandomPoisson[");
+if (index == -1) index = line.indexOf("RandomNormal[");
+if (index == -1) index = line.indexOf("RandomBinomial[");
+if (index == -1) index = line.indexOf("RandomUniform[");
+if (index == -1) index = line.indexOf("Sample[");
+if (index > -1 && (isCommandInput || line.substring(index-1, index) !== '"')) {
+		  document.getElementById("warning").innerHTML+= '<br><font size="20" color="red">Please check, random numbers must be defined in their own object'+sanitise(line)+'</font>';
+}
+
+
+// end loop
+}
+
+}, function error(e) {
+    // do nothing
+});
+
+
+}
+
+
+
+        function correctListener() {
+            console.log("correctListener " + ggbApplet.getValue("correct"));
+
+            var correct = ggbApplet.getValue("correct");
+            var correctStr;
+            if (maxscore == 1) {
+                // true or false if one part question
+                correctStr = (correct == 0) ? "false" : "true";
+            } else {
+                // eg "2 out of 4"
+                correctStr = Math.round(correct * maxscore) + " out of " + maxscore;
+                correctStr = ""+(Math.round(correct * maxscore) / maxscore);
+            }
+
+            document.getElementById("correct").innerHTML = "correct = " + correctStr;
+        }
+        var width = 800;
+        var height = 600;
+        var id;
+        var seed = 1;
+
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('width')) {
+            width = urlParams.get('width');
+        }
+        if (urlParams.has('height')) {
+            height = urlParams.get('height');
+        }
+        if (urlParams.has('id')) {
+            id = urlParams.get('id');
+        }
+        if (urlParams.has('seed')) {
+            seed = urlParams.get('seed');
+        }
+
+
+        var parameters = {
+            "id": "ggbApplet",
+            "width": width,
+            "height": height,
+            "showMenuBar": false,
+            "showAlgebraInput": false,
+            "showToolBar": false,
+            "customToolBar": "0 39 73 62 | 1 501 67 , 5 19 , 72 75 76 | 2 15 45 , 18 65 , 7 37 | 4 3 8 9 , 13 44 , 58 , 47 | 16 51 64 , 70 | 10 34 53 11 , 24  20 22 , 21 23 | 55 56 57 , 12 | 36 46 , 38 49  50 , 71  14  68 | 30 29 54 32 31 33 | 25 17 26 60 52 61 | 40 41 42 , 27 28 35 , 6",
+            "showToolBarHelp": false,
+            "showResetIcon": false,
+            "enableLabelDrags": false,
+            "enableShiftDragZoom": false,
+            "enableRightClick": false,
+            "errorDialogsActive": false,
+            "useBrowserForJS": false,
+            "allowStyleBar": false,
+            "preventFocus": false,
+            "showZoomButtons": false,
+            "capturingThreshold": 3,
+            // add code here to run when the applet starts
+            "appletOnLoad": function (api) {
+
+                //maxscore is global!
+                maxscore = api.getValue("maxscore") || 1;
+
+                api.registerObjectUpdateListener("correct", "correctListener");
+                api.setValue("showanswer", true);
+
+                // global
+                ggbApplet = api;
+
+
+
+            },
+            "showFullscreenButton": false,
+            "scale": 1,
+            "disableAutoScale": false,
+            "allowUpscale": false,
+            "clickToLoad": false,
+            "appName": "classic",
+            "showSuggestionButtons": true,
+            "randomSeed": seed,
+            "language": "en",
+            // use this instead of ggbBase64 to load a material from geogebra.org
+            "material_id": id,
+            // use this instead of ggbBase64 to load a .ggb file
+            // "filename":"myfile.ggb",
+            //"ggbBase64":"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"
+        };
+        // is3D=is 3D applet using 3D view, AV=Algebra View, SV=Spreadsheet View, CV=CAS View, EV2=Graphics View 2, CP=Construction Protocol, PC=Probability Calculator DA=Data Analysis, FI=Function Inspector, macro=Macros
+        var views = { 'is3D': 0, 'AV': 0, 'SV': 0, 'CV': 0, 'EV2': 0, 'CP': 0, 'PC': 0, 'DA': 0, 'FI': 0, 'macro': 0 };
+        var applet = new GGBApplet(parameters, true);
+		
+		applet.setHTML5Codebase("https://apps-builds.s3-eu-central-1.amazonaws.com/geogebra/branches/master/latest/web3d");
+
+		
+		
+        window.onload = function () {
+            applet.inject('ggbApplet')
+            document.addEventListener("keydown", keyDownTextField, false);
+        };
+
+        oldStop = Event.prototype.stopPropagation;
+        Event.prototype.stopPropagation = function () {
+            if (this.type == "keydown") {
+                keyDownTextField(this);
+            }
+            oldStop.call(this);
+        }
+
+
+        function keyDownTextField(e) {
+            var keyCode = e.keyCode;
+            console.log(e);
+            console.log("keyCode: " + keyCode);
+            console.log("key: " + e.key);
+            console.log("altKey: " + e.altKey);
+            var key = e.key;
+
+            // Alt
+            if (e.altKey) {
+
+                switch (key) {
+
+                    //  
+                    case "-": key = "⁻"; break;
+                    case "0": key = "⊗"; break;
+                    case "1": key = "¹"; break;
+                    case "2": key = "²"; break;
+                    case "3": key = "³"; break;
+                    case "4": key = "⁴"; break;
+                    case "5": key = "⁵"; break;
+                    case "6": key = "⁶"; break;
+                    case "7": key = "⁷"; break;
+                    case "8": key = "⁸"; break;
+                    case "9": key = "⁹"; break;
+                    case "*": key = "⊗"; break;
+                    case "I": key = "ί"; break;
+                    case "i": key = "ί"; break;
+                    case "o": key = "°"; break;
+                    case "O": key = "°"; break;
+                    case "u": key = "∞"; break;
+                    case "U": key = "∞"; break;
+                    case "a": key = "α"; break;
+                    case "A": key = "Α"; break;
+                    case "b": key = "β"; break;
+                    case "B": key = "Β"; break;
+                    case "g": key = "γ"; break;
+                    case "G": key = "Γ"; break;
+                    case "d": key = "δ"; break;
+                    case "D": key = "Δ"; break;
+                    case "l": key = "λ"; break;
+                    case "L": key = "Λ"; break;
+                    case "m": key = "μ"; break;
+                    case "M": key = "Μ"; break;
+                    case "p": key = "π"; break;
+                    case "P": key = "Π"; break;
+                    case "s": key = "σ"; break;
+                    case "S": key = "Σ"; break;
+                    case "w": key = "ω"; break;
+                    case "W": key = "Ω"; break;
+                    case "t": key = "θ"; break;
+                    case "T": key = "Θ"; break;
+
+
+                    // strange Mac thing for <AltGr>i
+                    // e.key = "Dead"
+                    // e.code = "KeyI"
+                    // keyCode = 229
+                    // e.altPressed = true
+                    // OR
+                    // e.key = "Dead"
+                    // e.code = "Backquote"
+                    // keyCode = 220
+					
+					// 222 For Spanish ^ (Windows)
+                    case "Dead":
+                        if (keyCode == 73 || keyCode == 229 || keyCode == 220 || keyCode == 222) {
+                            key = "^";
+                        } else {
+                            console.log("unknown 'Dead' key " + keyCode, e);
+                        }
+                        break;
+
+                }
+
+
+            } else if (key == "Dead") {
+				// Spanish (US) <AltGr>' -> 222
+                       if (keyCode == 222) {
+                            key = "^";
+                        } else {
+                            console.log("unknown 'Dead' key " + keyCode, e);
+                        }
+			
+			} 
+
+            if (key != "^" && keyCode == 32) {
+                key = "Space";
+            }
+
+            //change eg Enter to <Enter>
+            if (key.length > 1) {
+                key = "<" + key + ">";
+            }
+
+            key = key.replace("Arrow", "");
+
+            switch (key) {
+
+                case "<Shift>":
+                case "<Alt>":
+                case "<Control>":
+                case "<AltGraph>":
+                case "<Meta>":
+                case "<ContextMenu>":
+                case "<Dead>":
+				case "<NumLock>":
+				case "<CapsLock>":
+				case "<ScrollLock>":
+				case "<Escape>":
+				case "<F1>":
+				case "<F2>":
+				case "<F3>":
+				case "<F4>":
+				case "<F5>":
+				case "<F6>":
+				case "<F7>":
+				case "<F8>":
+				case "<F9>":
+				case "<F10>":
+				case "<F11>":
+				case "<F12>":
+				
+                    // ignore these
+                    break;
+
+                default:
+                    document.getElementById("log").value += key;
+                // Replace <Dead><Space> by ^ (workaround for german keyboard layout.)
+                //document.getElementById("log").value = document.getElementById("log").value.replace("<Dead><Space>", "^");                   
+            }
+        }
+	
+	function getRequest(id) {
+
+return { "request": {
+    "-api": "1.0.0",
+    "task": {
+      "-type": "fetch",
+      "fields": {
+        "field": [
+          //{ "-name": "url" },
+          { "-name": "title" },
+          { "-name": "modified" },
+          //{ "-name": "author" },
+          //{ "-name": "author_url" },
+          //{ "-name": "ggbbase64" },
+        ]
+      },
+      "filters" : {
+        "field": [
+          { "-name":"id", "#text":id },
+        ]
+      },
+      "order": {
+        "-by": "timestamp",
+        "-type": "desc"
+      },
+      "limit": { "-num": "1" }
+    }
+  }
+};
+
+
+}
+
+var apiUrl = "https://www.geogebra.org/api/json.php";
+
+function sanitise(s) {
+
+  return s.replace(/</g, "&lt;");
+
+}
+
+function post(data) {
+var xhr = new XMLHttpRequest();
+xhr.open("POST", apiUrl, true);
+xhr.onreadystatechange = function () {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+        var json = JSON.parse(xhr.responseText);
+        console.log(xhr.responseText);
+		
+		//alert(json.responses.response.item.title)
+		document.getElementById("title").innerHTML+="<br>"+sanitise(json.responses.response.item.title);
+		var unix_timestamp = json.responses.response.item.modified * 1;
+		var date = new Date(unix_timestamp * 1000);
+		document.getElementById("title").innerHTML+="<br>Last modified: "+date;
+
+
+		}
+};
+
+if (typeof data != 'string') {
+	data = JSON.stringify(data);
+}
+
+
+xhr.send(data);
+
+}
+
+// load .ggb file and check random numbers
+getUrl(id);		
+
+	// get title
+	post(getRequest(id));
+
+    </script>
+    <textarea cols="100" rows="5" id="log"></textarea><br />
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('log').value)">Copy to
+        Clipboard</button>
+    <button onclick='ggbApplet.setValue("validate",  true);'>validate = true</button>
+    <button onclick='ggbApplet.setValue("validate", false);'>validate = false</button>
+    <button onclick='ggbApplet.setValue("showanswer",  true);'>showanswer = true</button>
+    <button onclick='ggbApplet.setValue("showanswer", false);'>showanswer = false</button>
+    <button onclick='ggbApplet.setValue("showsolution",  true);'>showsolution = true</button>
+    <button onclick='ggbApplet.setValue("showsolution", false);'>showsolution = false</button>
+    <div id="correct">correct = ?</div>
+
+
+</body>
+
+</html>
