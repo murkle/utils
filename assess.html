@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<script src="https://www.geogebra.org/apps/deployggb.js"></script>
+
+</head>
+<body>
+<div id="ggbApplet"></div>
+<div id = "validate">
+<div id = "warning"></div>
+<button onclick='api.evalCommand("UpdateConstruction()");'>New Question</button>
+<button onclick='api.setValue("validate",  true);'>validate = true</button>
+<button onclick='api.setValue("validate", false);'>validate = false</button>
+</div>
+<div id = "showanswer">
+<button onclick='api.setValue("showanswer",  true);'>showanswer = true</button>
+<button onclick='api.setValue("showanswer", false);'>showanswer = false</button>
+</div>
+<div id = "showsolution">
+<button onclick='api.setValue("showsolution",  true);'>showsolution = true</button>
+<button onclick='api.setValue("showsolution", false);'>showsolution = false</button>
+</div>
+<div id = "correct">correct = ?</div>
+<p/>
+<div id = "version">version = ?</div>
+
+
+<script>
+
+var api;
+
+var width = 800, height = 600, seed = 1;
+
+//var id = "gebkyk2c";
+//var id = "jbdtq8md";
+var id = "gceb4z5q";
+var cb = "master/latest";
+var urlParams = new URLSearchParams(window.location.search);
+
+if (urlParams.has('id')) {
+     id = urlParams.get('id') + "";
+}
+if (urlParams.has('width')) {
+     width = urlParams.get('width') * 1;
+}
+if (urlParams.has('height')) {
+     height = urlParams.get('height') * 1;
+}
+if (urlParams.has('seed')) {
+     seed = urlParams.get('seed') * 1;
+}
+if (urlParams.has('cb')) {
+     cb = urlParams.get('cb');
+}
+
+
+function correctListener() {
+var correct = api.getValue("correct")
+console.log("correctListener " + correct);
+
+var showCorrect = correct + "";
+
+if (correct == 0) {
+	showCorrect = "false";
+} else if (correct == 1) {
+	showCorrect = "true";
+}
+
+
+
+document.getElementById("correct").innerHTML="correct = " + showCorrect;
+}
+
+
+var parameters = {
+"id": "ggbAssess",
+"width":width || 800,
+"height":height || 600,
+"randomSeed":seed || 1,
+"showMenuBar":false,
+"showAlgebraInput":false,
+"showToolBar":false,
+"showToolBarHelp":false,
+"showResetIcon":false,
+"enableLabelDrags":false,
+"enableShiftDragZoom":false,
+"enableRightClick":false,
+"errorDialogsActive":false,
+"useBrowserForJS":false,
+"allowStyleBar":false,
+"preventFocus":false,
+"showZoomButtons":false,
+"capturingThreshold":3,
+// add code here to run when the applet starts
+"appletOnLoad":function(api0){
+
+api = api0; 
+
+document.getElementById("version").innerHTML="GeoGebra version = " + api.getVersion();
+
+api.registerObjectUpdateListener("correct", "correctListener");
+
+
+if (api.getObjectType("validate") != "boolean") {
+  document.getElementById("validate").style.display = "none";
+}
+if (api.getObjectType("showanswer") != "boolean") {
+  document.getElementById("showanswer").style.display = "none";
+}
+if (api.getObjectType("showsolution") != "boolean") {
+  document.getElementById("showsolution").style.display = "none";
+}
+
+
+ },
+"showFullscreenButton":false,
+"scale":1,
+"disableAutoScale":false,
+"allowUpscale":false,
+"clickToLoad":false,
+"appName":"classic",
+"showSuggestionButtons":true,
+"language":"en",
+ "material_id":id || "KdK6yXrU",
+};
+var applet = new GGBApplet(parameters, true);
+applet.setHTML5Codebase('https://apps-builds.s3-eu-central-1.amazonaws.com/geogebra/branches/'+cb+'/web3d');
+// 1 pixel preview + GeoGebra logo
+applet.setPreviewImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC","https://www.geogebra.org/images/GeoGebra_loading.png");
+
+window.onload = function() {applet.inject('ggbApplet')};
+
+
+</script>
+</body>
+</html>
