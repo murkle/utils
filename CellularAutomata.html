@@ -427,7 +427,7 @@ function newWorldData(type,seed) {
    switch (type) {
       case 1:
          for (i = 0; i < worldSize; i++)
-            currentWorld[i] = randInt(1,states-1);
+            currentWorld[i] = randInt(0,states-1);
          break;
       case 2:
          top = Math.ceil(worldSize/2);
