@@ -136,29 +136,35 @@ var worldSize;            // Number of cells in the world
 var worldsInCanvas;       // Number of rows of cells that can be displayed in the canvas
 
 var rule;                 // An array of the rule
-var rulesUsed;            // How many rules in the path are used, equal to lambda*lambdaPath.length
+//var rulesUsed;            // How many rules in the path are used, equal to lambda*lambdaPath.length
 var ruleIsUsed;           // An array where ruleIsUsed[i] == 1 iff rule i is activated
 var generationNumber;
 var currentWorld;
 var savedWorlds;          // Contains all the generations that are currently in the canvas,
                           //     with generation number n in position (worldsInCanvas % n)
 //var ruleInfo;             // text for display above the canvas, with number of states, neighbors, rules
+var cellSize = 2; 
 
+function getRandomRule() {
+	var str = "";
+	for (var i = 0 ; i < 10 ; i++) {
+		str += randInt(0,4)+"";
+	}
 
+	return str;
+
+}
 
 function setRule(str) {
 
 if (str == "random") {
-str = "";
-for (var i = 0 ; i < 10 ; i++) {
-
-str += randInt(0,4)+"";
-
-
-}
+str = getRandomRule();
 
 console.log("rule = " + str);
 }
+
+setTimeout(function(){ document.getElementById("rulesused").value = str; }, 1);
+
 
 
 states = 1;
@@ -191,6 +197,9 @@ if (urlParams.has('rule')) {
 	ruleStr = urlParams.get('rule') + "";
 }
 setRule(ruleStr);
+if (urlParams.has('cellsize')) {
+	cellSize = urlParams.get('cellsize') * 1;
+}
 
 
 
@@ -574,7 +583,6 @@ function completeResize() {
 
 //------------------------------------ events  and animation -------------------------------------------
 
-var cellSize;
 var worldLeft;  // size of gap between left edge of canvas and first cell
 var worldTop;   // y-coord in canvas for NEXT generation to be drawn.
 
@@ -671,10 +679,10 @@ function doRestart() {
 }
 
 function doNewWorld(oldWorld, useOldWorld) {  // two params are present when this is called because canvas size changed
-    if (useOldWorld) {  // substitue data from previous initialWorld; presense of 2nd param means this was called because of resizing
+    if (useOldWorld) {  // substitute data from previous initialWorld; presense of 2nd param means this was called because of resizing
         worldSize = Math.floor(canvas.width / cellSize);
         worldsInCanvas = Math.floor((canvas.height-1) / cellSize) + 1;
-        newWorldData( Number(document.getElementById("worldtype").value) );
+        newWorldData(1);
         for (var i = 0; i < oldWorld.length && i < currentWorld.length; i++) {
             currentWorld[i] = oldWorld[i];
         }
@@ -683,14 +691,14 @@ function doNewWorld(oldWorld, useOldWorld) {  // two params are present when thi
         }
     }
     else {
-       cellSize = Number(document.getElementById("cellsize").value);
+       //cellSize = Number(document.getElementById("cellsize").value);
        ticksPerGeneration = Number(document.getElementById("speed").value); // in case size changes while running (also for first call)
        if (cellSize > 1) {  // for large cells, scale the speed
            ticksPerGeneration = Math.min(120,Math.floor(ticksPerGeneration*cellSize/2));
        }
        worldSize = Math.floor(canvas.width / cellSize);
        worldsInCanvas = Math.floor((canvas.height-1) / cellSize) + 1;
-       newWorldData( Number(document.getElementById("worldtype").value) );
+       newWorldData( 1 );
     }
     initialWorld = window.Unit8Array ? new Uint8Array(worldSize) : new Array(worldSize);
     for (var i = 0; i < worldSize; i++) {
@@ -713,8 +721,14 @@ function doNewWorld(oldWorld, useOldWorld) {  // two params are present when thi
     stopGeneration = -1;
     imageData = graphics.getImageData(gapLeft,0,cellSize*worldSize,1);
     //document.getElementById("info").innerHTML = ruleInfo;
-    document.getElementById("rulesused").value = "" + (rulesUsed+1);
+    //document.getElementById("rulesused").value = "" + (rulesUsed+1);
     drawCurrentWorld();
+}
+
+function randomRule() {
+	setRule("random");
+	doNewRules();
+
 }
 
 function doNewRules() {
@@ -724,46 +738,29 @@ function doNewRules() {
     //newRuleSetData();
     doNewWorld();
     //document.getElementById("info").innerHTML = ruleInfo;
-    document.getElementById("rulesused").value = "" + (rulesUsed+1);
+    //document.getElementById("rulesused").value = "" + (rulesUsed+1);
 }
 
 function doChangeSpeed() {
     var ticks = Number(document.getElementById("speed").value);
-    if (cellSize > 1) {  // for large cells, scale the speed
-        ticks = Math.min(120,Math.floor(ticks*cellSize/2));
-    }
+    //if (cellSize > 1) {  // for large cells, scale the speed
+    //    ticks = Math.min(120,Math.floor(ticks*cellSize/2));
+    //}
     if (ticks != ticksPerGeneration) {
         ticksPerGeneration = ticks;
         ticksSinceLastGeneration = 0;
     }
 }
 
-/*
-function doChangeNumberOfStates() {
-    var states = Number(document.getElementById("states").value);
-    var neighbors = Number(document.getElementById("neighbors").value);
-    var html = "";
-    var n = 3;  // Number of neighbors
-    var max = 3; // maximum number of neighbors allowed for this state number
-    while (Math.pow(states,n) < 1048576) {  // 2^20; max number of rules
-        html += "<option>" + n + "</option>";
-        max = n;
-        n = n + 2;
-    }
-    document.getElementById("neighbors").innerHTML = html;
-    if (neighbors > max) {
-        neighbors = max
-    }
-    document.getElementById("neighbors").value = "" + neighbors;
-}*/
-
 var rulesUsedTimeout = null;
 function doKeyInRulesUsed(evt) {
+console.log("doKeyInRulesUsed", evt)
     var code = evt.keyCode;
     if (code == 10 || code == 13 || code == 37 || code == 39) {
         return;
     }
-    if ((code < 48 || code > 57) && code != 8) {
+    if ((code < 48 || code > 57) && code != 8 && !evt.ctrlKey) {
+		console.log("calling preventDefault() for " + code);
         evt.preventDefault();
         return;
     }
@@ -773,6 +770,7 @@ function doKeyInRulesUsed(evt) {
     rulesUsedTimeout = setTimeout(completeEnterRulesUsed, 1000);
 }
 function doChangeRulesUsed() {  // handles a blur or change event, only need to respond to them immediately
+console.log("doChangeRulesUsed")
     if (rulesUsedTimeout) {
         clearTimeout(rulesUsedTimeout);
         rulesUsedTimeout = null;
@@ -781,19 +779,9 @@ function doChangeRulesUsed() {  // handles a blur or change event, only need to 
 }
 function completeEnterRulesUsed() {
 
-console.log("completeEnterRulesUsed")
+setRule(document.getElementById("rulesused").value+"");
+doRestart();
 
-    var val = Number(document.getElementById("rulesused").value.trim());
-    if (isNaN(val) || val <= 0 || val > lambdaPath.length + 1) {
-        document.getElementById("info").innerHTML = "Error: Rules in use must be in range 1 to " + (lambdaPath.length+1);
-        return;
-    }
-    //document.getElementById("info").innerHTML = ruleInfo;
-    if ((val-1) != rulesUsed) {
-      lambdaSlider.setValue(0, (val-1) / lambdaPath.length);
-      setRulesUsed(val);
-      doRestart();
-    }
 }
  
 
@@ -952,7 +940,7 @@ function applyExampleData(data) {
     newWorldData(data[5],data[2]);
     setRulesUsed(data[6]);
     //document.getElementById("info").innerHTML = ruleInfo;
-    document.getElementById("rulesused").value = "" + (rulesUsed+1);
+    //document.getElementById("rulesused").value = "" + (rulesUsed+1);
     initialWorld = window.Unit8Array ? new Uint8Array(worldSize) : new Array(worldSize);
     for (var i = 0; i < worldSize; i++) {
         initialWorld[i] = currentWorld[i];
@@ -974,7 +962,7 @@ function applyExampleData(data) {
     stopGeneration = -1;
     imageData = graphics.getImageData(gapLeft,0,cellSize*worldSize,1);
     //document.getElementById("info").innerHTML = ruleInfo;
-    document.getElementById("rulesused").value = "" + (rulesUsed+1);
+    //document.getElementById("rulesused").value = "" + (rulesUsed+1);
     drawCurrentWorld();
 }
 
@@ -1085,16 +1073,14 @@ function init() {
         document.getElementById("deleteall").onclick = doDeleteAll;
         populateExampleMenus();
     }
-    document.getElementById("speed").value = "3";
-    document.getElementById("cellsize").value = "2";
-    document.getElementById("worldtype").value = "3";
+    document.getElementById("speed").value = "1";
     document.getElementById("run").onclick = doRun;
     document.getElementById("pause").onclick = doPause;
     document.getElementById("step").onclick = doStep;
     document.getElementById("runToScreen").onclick = doRunToScreen;
     document.getElementById("restart").onclick = doRestart;
     document.getElementById("newworld").onclick = doNewWorld;
-    document.getElementById("new").onclick = doNewRules;
+    document.getElementById("new").onclick = randomRule;
     document.getElementById("colors").onclick = showPaletteEditor;
     document.getElementById("speed").onchange = doChangeSpeed;
     //document.getElementById("states").onchange = doChangeNumberOfStates;
@@ -1141,28 +1127,8 @@ function init() {
 </div>
 
 <div class="group">
-<p><button id="newworld">Create New World Using:</button><br>
-       <label class="indent">Fill: <select id="worldtype">
-          <option value="1">All Cells, all live</option>
-          <option value="2">All Cells, symmetric</option>
-          <option value="3">All Cells, 50% dead</option>
-          <option value="4">All Cells, 75% dead</option>
-          <option value="5">Clump</option>
-          <option value="6">Symmetric Clump</option>
-          <option value="7">Clumps</option>
-          <option value="8">One Dot</option>
-          <option value="9">Dots</option>
-       </select></label><br>
-       <label class="indent">Cell Size: <select id="cellsize">
-           <option value="1">1</option>
-           <option value="2">2</option>
-           <option value="3">3</option>
-           <option value="4">4</option>
-           <option value="5">5</option>
-           <option value="7">7</option>
-           <option value="10">10</option>
-           <option value="20">20</option>
-       </select></label>
+<p><button id="newworld">Create New World</button><br>
+       
 </p>
 
 </div>
@@ -1206,7 +1172,7 @@ function init() {
 <td>
 <div id="board">
   <div id="slider-holder">
-      <p>Rule: <input type="text" id="rulesused" maxlength="20" size="20"><canvas id="slider-canvas" height="40" width="100" align="center"></canvas></p>
+      <p>Rule: <input style="font-size:46px;" type="text" id="rulesused" maxlength="20" size="20"><canvas id="slider-canvas" height="40" width="100" align="center"></canvas></p>
   </div>
   <div id="canvas-holder">
      <canvas id="canvas" width="100" height="100"></canvas>
