@@ -1,0 +1,400 @@
+
+<html> 
+<head> 
+<script src="./skulpt.min.js"></script> 
+<script src="./skulpt-stdlib.js"></script> 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.11.2/ace.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.11.2/ext-language_tools.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.11.2/mode-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.11.2/theme-twilight.min.js"></script>
+    <script src="serial.js"></script>
+    <script src="application.js"></script>
+
+<meta name=viewport content="width=device-width,initial-scale=1">
+<meta charset="utf-8"/>
+
+
+ <style type="text/css" media="screen">
+    body {
+        overflow: hidden;
+    }
+
+    #editor {
+	width:700px;
+height:400px;
+        margin: 0;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+  </style>
+  
+</head> 
+
+<body>
+
+
+<table width="100%">
+  <tr>
+    <td width="50%"><pre id="editor">
+# sennd string to Circuit PlayGround Express over USB!
+webusb("#0000ff")
+
+webusbNote(440,4)
+
+
+</pre></td>
+    <td width="50%" rowspan=5 >
+	
+        <div id="ggbApplet">
+	</div></td>
+  </tr>
+  <tr>
+  <td><button type="button" onclick="runit()">Run Python (&lt;Ctrl&gt;&lt;Enter&gt;)</button> 
+</td>
+  <tr/>
+  
+  <tr>
+<td>
+     <div class="connect-container">
+        <button id="connect" class="button black">Connect USB Device</button>
+        <span id="status"></span>
+      </div>
+	  	<button onclick="var color = new TextEncoder('utf-8').encode('#ff0000');port.send(color);">WebUSB Red</button>
+	<button onclick="var color = new TextEncoder('utf-8').encode('#00ff00');port.send(color);">WebUSB Green</button>
+
+
+<button id = "Save" type="button">Save (&lt;Ctrl&gt;S)</button>
+<button id = "SaveAs" type="button">Save as...</button>
+<button id = "OpenFile" type="button">Open</button>
+<button id = "Reset" onclick="editor.setValue('');"type="button">Reset</button>
+<button id = "Example1" type="button"
+onclick='editor.setValue("name = input(\"Enter your name:\")\nprint(\"Your name is: \" + name)");'
+>Example 1</button>
+<button id = "Example2" type="button"
+onclick='editor.setValue(`# play tune
+note_silent=0
+note_B0  =31
+note_C1  =33
+note_CS1 =35
+note_D1  =37
+note_DS1 =39
+note_E1  =41
+note_F1  =44
+note_FS1 =46
+note_G1  =49
+note_GS1 =52
+note_A1  =55
+note_AS1 =58
+note_B1  =62
+note_C2  =65
+note_CS2 =69
+note_D2  =73
+note_DS2 =78
+note_E2  =82
+note_F2  =87
+note_FS2 =93
+note_G2  =98
+note_GS2 =104
+note_A2  =110
+note_AS2 =117
+note_B2  =123
+note_C3  =131
+note_CS3 =139
+note_D3  =147
+note_DS3 =156
+note_E3  =165
+note_F3  =175
+note_FS3 =185
+note_G3  =196
+note_GS3 =208
+note_A3  =220
+note_AS3 =233
+note_B3  =247
+note_C4  =262
+note_CS4 =277
+note_D4  =294
+note_DS4 =311
+note_E4  =330
+note_F4  =349
+note_FS4 =370
+note_G4  =392
+note_GS4 =415
+note_A4  =440
+note_AS4 =466
+note_B4  =494
+note_C5  =523
+note_CS5 =554
+note_D5  =587
+note_DS5 =622
+note_E5  =659
+note_F5  =698
+note_FS5 =740
+note_G5  =784
+note_GS5 =831
+note_A5  =880
+note_AS5 =932
+note_B5  =988
+note_C6  =1047
+note_CS6 =1109
+note_D6  =1175
+note_DS6 =1245
+note_E6  =1319
+note_F6  =1397
+note_FS6 =1480
+note_G6  =1568
+note_GS6 =1661
+note_A6  =1760
+note_AS6 =1865
+note_B6  =1976
+note_C7  =2093
+note_CS7 =2217
+note_D7  =2349
+note_DS7 =2489
+note_E7  =2637
+note_F7  =2794
+note_FS7 =2960
+note_G7  =3136
+note_GS7 =3322
+note_A7  =3520
+note_AS7 =3729
+note_B7  =3951
+note_C8  =4186
+note_CS8 =4435
+note_D8  =4699
+note_DS8 =4978
+
+tune = ((note_C4, 4), (note_G3, 8), (note_G3, 8), (note_A3, 4), (note_G3, 4), (note_silent, 4), (note_B3, 4), (note_C4,4))
+
+for note in tune:
+    webusbNote(note[0],note[1])
+`)'
+>Example 2</button>
+<button id = "Example3" type="button"
+onclick='editor.setValue(`
+
+`)'
+>Example 3</button>
+<button id = "Example4" type="button"
+onclick='editor.setValue(`
+
+`)'
+>Example 4</button>
+<button id = "Example5" type="button"
+onclick='editor.setValue(`
+
+`)'>Example 5</button>
+
+
+
+<button id = "Example6" type="button"
+onclick='editor.setValue(`
+
+`)'
+>Example 6</button>
+
+<button id = "Example7" type="button"
+onclick='editor.setValue(`
+
+
+
+
+`)'
+>Example 7</button>
+
+
+
+
+  </td>
+  </tr>
+  
+  <tr>
+  <td>
+   <textarea id="output" name="output" rows="10" cols="80">
+Python messages appear here
+ </textarea>
+ 
+
+  </td>
+  </tr>
+</table>
+
+
+
+<script> 
+
+// for WebUSB
+var port;
+
+var editor;
+var fileHandle;
+
+const GGB_POINT = "point";
+
+
+// output functions are configurable.  This one just appends some text
+// to a pre element.
+function outf(text) { 
+    var mypre = document.getElementById("output"); 
+    mypre.innerHTML = mypre.innerHTML + text; 
+	//alert(text);
+} 
+function builtinRead(x) {
+    if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined)
+            throw "File not found: '" + x + "'";
+    return Sk.builtinFiles["files"][x];
+}
+
+// make prompt work better. default seems to do alert(a) then prompt()
+function customPrompt(a) {
+  return prompt(a);
+}
+
+// Here's everything you need to run a python program in skulpt
+// grab the code from your textarea
+// get a reference to your pre element for output
+// configure the output function
+// call Sk.importMainWithBody()
+function runit() { 
+   
+   // get contents of Ace editor
+   var prog = editor.getValue();
+   
+   var mypre = document.getElementById("output"); 
+   mypre.innerHTML = ''; 
+   Sk.pre = "output";
+   Sk.configure({
+   "output":outf,
+   "read":builtinRead,
+   "__future__": Sk.python3,
+   "inputfun": customPrompt,
+   "inputfunTakesPrompt": true /* then you need to output the prompt yourself */
+
+   }); 
+   
+   //(Sk.TurtleGraphics || (Sk.TurtleGraphics = {})).target = 'mycanvas';
+   
+   var myPromise = Sk.misceval.asyncToPromise(function() {
+       return Sk.importMainWithBody("<stdin>", false, prog, true);
+   });
+   
+   myPromise.then(function(mod) {
+       //console.log('success');
+   },
+       function(err) {
+       console.log(err.toString());
+   });
+} 
+
+Sk.builtins.webusb = new Sk.builtin.func(function (v) {
+	var param = Sk.ffi.remapToJs(v) + "";
+	
+	// make sure it's exactly 7 chars
+	param = (param + "0000000").substring(0,7);
+	
+	var paramEncoded = new TextEncoder('utf-8').encode(param);
+	port.send(paramEncoded).then((t) => console.log(t));
+	
+	return;
+});
+
+Sk.builtins.webusbNote = new Sk.builtin.func(function (n, d) {
+	var note = Sk.ffi.remapToJs(n) * 1;
+	var duration = Sk.ffi.remapToJs(d) * 1;
+	
+	var noteHex = note.toString(16);
+	var durationHex = duration.toString(16);
+	
+	// pad to exactly 3 characters
+	noteHex = ("000" + noteHex).slice(-3);
+	durationHex = ("000" + durationHex).slice(-3);
+	
+	var paramsEncoded = new TextEncoder('utf-8').encode("n" + noteHex + durationHex);
+	port.send(paramsEncoded);
+	
+	return;
+});
+
+
+</script>
+
+
+<script>
+
+const options = {
+    types: [
+      {
+        description: 'Python Files',
+        accept: {
+          'text/x-python': ['.py'],
+        },
+      },
+    ],
+  };
+
+var butOpenFile = document.getElementById("OpenFile");
+var butSaveFile = document.getElementById("Save");
+var butSaveAs = document.getElementById("SaveAs");
+
+butOpenFile.addEventListener('click', async () => {
+  // Destructure the one-element array.
+  [fileHandle] = await window.showOpenFilePicker(options);
+  const file = await fileHandle.getFile();
+  const contents = await file.text();
+  editor.setValue(contents);
+});
+
+butSaveAs.addEventListener('click', async () => {
+  fileHandle = await getNewFileHandle();
+  await writeFile(fileHandle, editor.getValue());
+});
+
+function save() {
+alert("TODO");
+}
+
+butSaveFile.addEventListener('click', async () => {
+	  if (!fileHandle) {
+	fileHandle = await getNewFileHandle();
+  }
+  await writeFile(fileHandle, editor.getValue());
+
+});
+
+async function getNewFileHandle() {
+  
+  const handle = await window.showSaveFilePicker(options);
+  return handle;
+}
+
+// initialise editor
+    editor = ace.edit("editor");
+    editor.setTheme("ace/theme/twilight");
+    editor.session.setMode("ace/mode/python");
+	editor.setFontSize(20);
+	
+	// Ctrl-Enter in editor -> run Python code
+	editor.commands.addCommand({
+    name: "exec",
+    exec: function() {runit()},
+    bindKey: {mac: "cmd-enter", win: "ctrl-enter"}
+});
+
+	editor.commands.addCommand({
+    name: "save",
+    exec: async () => {
+	  if (!fileHandle) {
+	fileHandle = await getNewFileHandle();
+  }
+  await writeFile(fileHandle, editor.getValue());
+
+},
+    bindKey: {mac: "cmd-s", win: "ctrl-s"}
+});
+</script>
+
+</body> 
+
+</html> 
