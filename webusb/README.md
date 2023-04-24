@@ -16,4 +16,5 @@ No code is run on the device - code runs on the browser and the device is just c
 6. Open webusb-api.ino from this repository
 7. Compile and upload it to your Circuit Playground Express
 8. Open web-usb.html
-9. Type in and run a test program eg to play a tune `webusbNote(440,4)` or set all the LEDs to blue `webusb("#0000ff")`
+9. Click "Connect" and select Circuit Playground Express from the dialog
+10. Type in and run a test program eg to play a tune `webusbNote(440,4)` or set all the LEDs to blue `webusb("#0000ff")`
