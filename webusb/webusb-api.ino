@@ -12,24 +12,6 @@
 #include "Adafruit_TinyUSB.h"
 #include <Adafruit_CircuitPlayground.h>
 
-// Which pin on the Arduino is connected to the NeoPixels?
-// On a Trinket or Gemma we suggest changing this to 1
-// use on-board neopixel PIN_NEOPIXEL if existed
-#ifndef PIN_NEOPIXEL
-  #define PIN_NEOPIXEL 8
-#endif
-
-// How many NeoPixels are attached to the Arduino?
-// use on-board defined NEOPIXEL_NUM if existed
-#ifndef NEOPIXEL_NUM
-  #define NEOPIXEL_NUM  10
-#endif
-
-// When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
-// Note that for older NeoPixel strips you might need to change the third parameter--see the strandtest
-// example for more information on possible values.
-//Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NEOPIXEL_NUM, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
-
 // USB WebUSB object
 Adafruit_USBD_WebUSB usb_web;
 
@@ -64,8 +46,9 @@ void setup()
   CircuitPlayground.begin();  // initialize the CP library
 
    // Turn off all the NeoPixels (needed?)
-  //CircuitPlayground.strip.clear();
-  //CircuitPlayground.strip.show(); 
+  CircuitPlayground.strip.clear();
+  CircuitPlayground.strip.show(); 
+  CircuitPlayground.setPixelColor(1, 0x00ff00);
 }
 
 // convert a hex character to number
