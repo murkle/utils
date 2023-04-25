@@ -39,7 +39,8 @@ height:400px;
 <table width="100%">
   <tr>
     <td width="50%"><pre id="editor">
-# sennd string to Circuit PlayGround Express over USB!
+# send commands to Circuit PlayGround Express over USB!
+import time
 
 # do nothing (returns status)
 webusb("v")
@@ -55,6 +56,12 @@ webusb("0ff0000")
 
 # play 440Hz note
 webusbNote(440,4)
+
+for x in range(10):
+    webusb(str(x)+"00ff00")
+    time.sleep(0.4)
+    webusb(str(x)+"ffffff")
+    time.sleep(0.4)
 
 
 </pre></td>
