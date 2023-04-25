@@ -10,7 +10,6 @@
 
 
 #include "Adafruit_TinyUSB.h"
-#include <Adafruit_NeoPixel.h>
 #include <Adafruit_CircuitPlayground.h>
 
 // Which pin on the Arduino is connected to the NeoPixels?
@@ -29,7 +28,7 @@
 // When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
 // Note that for older NeoPixel strips you might need to change the third parameter--see the strandtest
 // example for more information on possible values.
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NEOPIXEL_NUM, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+//Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NEOPIXEL_NUM, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 
 // USB WebUSB object
 Adafruit_USBD_WebUSB usb_web;
@@ -58,17 +57,15 @@ void setup()
   digitalWrite(NEOPIXEL_POWER, NEOPIXEL_POWER_ON);
 #endif
 
-  pixels.begin();
-  pixels.setBrightness(10);
-  pixels.fill(0xff0000);
-  pixels.show();
-
   // wait until device mounted
   while( !TinyUSBDevice.mounted() ) delay(1);
 
   //Serial.println("TinyUSB WebUSB RGB example");
   CircuitPlayground.begin();  // initialize the CP library
- 
+
+   // Turn off all the NeoPixels (needed?)
+  //CircuitPlayground.strip.clear();
+  //CircuitPlayground.strip.show(); 
 }
 
 // convert a hex character to number
@@ -132,13 +129,13 @@ void loop()
     uint8_t green = 16*char2num(parameters[2]) + char2num(parameters[3]);
     uint8_t blue  = 16*char2num(parameters[4]) + char2num(parameters[5]);
     uint32_t color = (red << 16) | (green << 8) | blue;
-
-    pixels.fill(color);
+    for (int i = 0 ; i < 10 ; i++) {
+       CircuitPlayground.setPixelColor(i, color);
+    }
   } else if (command == 'b') {
         uint8_t bright   = 16*char2num(parameters[0]) + char2num(parameters[1]);
 
-    pixels.setBrightness(bright);
-    pixels.fill(0xffffff);
+    CircuitPlayground.setBrightness(bright > 100 ? 100 : bright);
   } else if (command == 'n') {
     int tone = 256*char2num(parameters[0]) + 16*char2num(parameters[1]) + char2num(parameters[2]);
     int duration = 256*char2num(parameters[3]) + 16*char2num(parameters[4]) + char2num(parameters[5]);
@@ -154,15 +151,9 @@ void loop()
     uint32_t color = (red << 16) | (green << 8) | blue;
 
     uint8_t pixel = char2num(command);
-    pixels.setPixelColor(pixel, color);
+     CircuitPlayground.setPixelColor(pixel, color);
   }
-  pixels.show();
-
- // syntaxes for pixels
- // CircuitPlayground.setPixelColor(4,   0,   0, 255);  
- // CircuitPlayground.setPixelColor(5, 0xFF0000);
-
-
+ 
 // true/false
  boolean left = CircuitPlayground.leftButton();
  boolean right = CircuitPlayground.rightButton();
@@ -176,8 +167,7 @@ void loop()
   uint16_t light = CircuitPlayground.lightSensor();
  float sound = CircuitPlayground.mic.soundPressureLevel(10);
 
-// capacipive touch inputs, only works for A1-A6
-// MRB: I can only get A4 and A5 to work with threshold of 200
+// capacitive touch inputs, only works for A1-A7
  float capA1 = CircuitPlayground.readCap(A1);
  float capA2 = CircuitPlayground.readCap(A2);
  float capA3 = CircuitPlayground.readCap(A3);
@@ -185,9 +175,6 @@ void loop()
  float capA5 = CircuitPlayground.readCap(A5); // 2
  float capA6 = CircuitPlayground.readCap(A6);
  float capA7 = CircuitPlayground.readCap(A7);
-
-// uint8_t buf[] = {left ? 1 : 0, right ? 1 : 0, slide ? 1 : 0, floor(x*256), floor(y*256), floor(z*256), capA1 < 200.0 ? 0 : 1,  capA2 < 200.0 ? 0 : 1, capA3 < 200.0 ? 0 : 1, capA4 < 200.0 ? 0 : 1, capA5 < 200.0 ? 0 : 1, capA6 < 200.0 ? 0 : 1, capA7 < 200.0 ? 0 : 1};
- //usb_web.write(buf, sizeof(buf));
 
 // build JSON status string to return
 sendString("{");
@@ -203,11 +190,28 @@ sendString(slide ? "1," : "0,");
 // needs to be chunked into (max) 64 byte blocks
 usb_web.flush();
 
-sendString("\"temperature\":");
-sendFloat(temp);
-sendString(",");
-sendString("\"sound\":");
-sendFloat(sound);
+sendString("\"A1\":");
+sendFloat(capA1, true);
+sendString(",\"A2\":");
+sendFloat(capA2, true);
+sendString(",\"A3\":");
+sendFloat(capA3, true);
+sendString(",\"A4\":");
+sendFloat(capA4, true);
+sendString(",\"A5\":");
+sendFloat(capA5, true);
+sendString(",\"A6\":");
+sendFloat(capA6, true);
+sendString(",\"A7\":");
+sendFloat(capA7, true);
+
+// needs to be chunked into (max) 64 byte blocks
+usb_web.flush();
+
+sendString(",\"temperature\":");
+sendFloat(temp, false);
+sendString(",\"sound\":");
+sendFloat(sound, false);
 sendString(",\"light\":");
 sendString(String(light));
 sendString("}");
@@ -218,10 +222,13 @@ usb_web.flush();
    
 }
 
-void sendFloat(float f) {
+void sendFloat(float f, boolean comma) {
 
   // TODO: maybe change to dtostrf() if this causes memory problems (likely!?)
 sendString(String(f));
+if (comma) {
+  //sendString(",");
+}
 }
 
 void sendString(String text) {
@@ -235,9 +242,7 @@ usb_web.write(textArray, sizeof(textArray) - 1);
 
 void line_state_callback(bool connected)
 {
-  // connected = green, disconnected = red
-  pixels.fill(connected ? 0x00ff00 : 0xff0000);
-  pixels.show();
+  //
 }
 
 
