@@ -25,7 +25,7 @@
 		 port.onReceive = data => {
           let textDecoder = new TextDecoder();
 		  var jsonPart = textDecoder.decode(data);
-		  console.log(jsonPart);
+		  //console.log(jsonPart);
 		  
 		  if (jsonPart.startsWith("{")) {
 			buffer = "";
@@ -35,9 +35,9 @@
 		  buffer += jsonPart;
 		  if (buffer.endsWith("}")) {
 			  var json = JSON.parse(buffer);
-			 // json="{ version:1, leftButton:0}"
-			  console.log(json.version);
-			  console.log(json.leftButton);
+			  console.log(json);
+			  //console.log("version", json.apiVersion);
+			  //console.log("leftButton", json.leftButton);
 			  buffer = "";
 			  
 		  }
