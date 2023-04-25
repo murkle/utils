@@ -40,8 +40,20 @@ height:400px;
   <tr>
     <td width="50%"><pre id="editor">
 # sennd string to Circuit PlayGround Express over USB!
+
+# do nothing (returns status)
+webusb("v")
+
+# set brightness of all LEDs (2 digits 00 to 99)
+webusb("b10")
+
+# set all LEDs to blue
 webusb("#0000ff")
 
+# set 0th LED to red
+webusb("0ff0000")
+
+# play 440Hz note
 webusbNote(440,4)
 
 
@@ -291,9 +303,7 @@ function runit() {
 Sk.builtins.webusb = new Sk.builtin.func(function (v) {
 	var param = Sk.ffi.remapToJs(v) + "";
 	
-	// make sure it's exactly 7 chars
-	param = (param + "0000000").substring(0,7);
-	
+
 	var paramEncoded = new TextEncoder('utf-8').encode(param);
 	port.send(paramEncoded).then((t) => console.log(t));
 	
