@@ -17,7 +17,7 @@ Adafruit_USBD_WebUSB usb_web;
 
 // Landing Page: scheme (0: http, 1: https), url
 // Page source can be found at https://github.com/murkle/utils/blob/master/webusb/webusb-api.ino
-WEBUSB_URL_DEF(landingPage, 1 /*https*/, "murkle.github.io/utils/webusb/web-usb.html");
+WEBUSB_URL_DEF(landingPage, 1 /*https*/, "murkle.github.io/utils/webusb/web-usb.html?device=CircuitPlaygroundExpress");
 
 // the setup function runs once when you press reset or power the board
 void setup()
@@ -86,6 +86,21 @@ void loop()
 // b for brightness 
 // etc
   char command = input[0];
+
+  if (command == 'S') {
+      usb_web.readBytes(input, 2);
+      // low byte, high byte
+      int speechLength = input[0] + input[1] * 256;
+      uint8_t speechBuffer[speechLength];
+      usb_web.readBytes(speechBuffer, speechLength);
+      CircuitPlayground.speaker.say(speechBuffer);
+
+      sendString("{\"OK\":true}");
+
+      return;
+
+
+  }
 
   int len = parametersLength(command);
 
