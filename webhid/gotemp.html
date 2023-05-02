@@ -1,0 +1,55 @@
+<html>
+<head>
+
+
+</head>
+
+<body>
+
+<button onclick="init()">Start logging temperature from Vernier Go!Temp</button>
+
+<div id="device"></div>
+<div id="temp"></div>
+
+<script>
+// https://developer.chrome.com/articles/hid-examples/
+// https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
+let deviceFilter = { vendorId: 0x08f7 , productId: 0x0002 };
+let requestParams = { filters: [deviceFilter] };
+
+
+function handleDisconnectedDevice(e) {
+  console.log("Device disconnected: " + e.device.productName);
+  document.getElementById("temp").innerHTML = "Temperature = ?";
+
+}
+
+function handleInputReport(e) {
+  var data = new Uint8Array(e.data.buffer);
+  // https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
+  var rawTemp = data[2] + (data[3] <<8) + (data[4]<<16);
+  var celcius = rawTemp / 126.74 - 5.4;
+  celcius = Math.round(celcius * 10)/10
+  console.log(rawTemp, celcius);
+  document.getElementById("temp").innerHTML = "Temperature = " + celcius + "°C";
+  
+}
+
+navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+function init() {
+
+navigator.hid.requestDevice(requestParams).then((devices) => {
+  if (devices.length == 0) return;
+  devices[0].open().then(() => {
+	device = devices[0];
+    console.log("Opened device: " + device.productName, device);
+    document.getElementById("device").innerHTML = device.productName;
+    device.addEventListener("inputreport", handleInputReport);
+  });
+});
+
+}
+
+</script>
+</html>
