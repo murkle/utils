@@ -1,0 +1,79 @@
+<html>
+<head>
+
+
+</head>
+
+<body>
+Open <a href="https://chrome.google.com/webstore/detail/vernier-graphical-analysi/dncgedbnidfkppmdgfgidcepclnokpkb">chrome.google.com/webstore/detail/vernier-graphical-analysi/dncgedbnidfkppmdgfgidcepclnokpkb?hl=en</a> to init the device
+<br/>
+<br/>
+Press the button once the device starts clicking
+<br/>
+<br/>
+
+<button onclick="init()">Start logging distance from Vernier Go!Motion</button>
+
+
+<div id="device"></div>
+<div id="distance"></div>
+
+<script>
+
+
+
+
+// https://developer.chrome.com/articles/hid-examples/
+// https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
+// https://github.com/VernierST/GoIO_SDK/blob/4bd9d650c22036a77b666cebd4f3b1051b699d28/src/GoIO_cpp/GVernierUSB.h#L33
+// https://github.com/VernierST/GoIO_SDK/blob/4bd9d650c22036a77b666cebd4f3b1051b699d28/src/GoIO_cpp/GSkipCommExt.h#L36
+// Verner Go!Temp
+const GO_TEMP = 0x0002;
+// Vernier Go!Motion
+// https://the-sz.com/products/usbid/index.php?v=0x08F7
+const GO_MOTION = 0x0004;
+const VERNIER_ST=0x08f7;
+
+let deviceFilter = { vendorId: VERNIER_ST , productId: GO_MOTION };
+let requestParams = { filters: [deviceFilter] };
+
+
+function handleDisconnectedDevice(e) {
+  console.log("Device disconnected: " + e.device.productName);
+  document.getElementById("distance").innerHTML = "Distance = ?";
+
+}
+
+function handleInputReport(e) {
+  var data = new Uint8Array(e.data.buffer);
+  // https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
+  console.log(data);
+  var rawDistance = data[2] + (data[3] <<8) + (data[4]<<16);
+  console.log(rawDistance);
+  document.getElementById("distance").innerHTML = "Distance = " + rawDistance;
+  
+}
+
+navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+var device;
+
+function init() {
+
+navigator.hid.requestDevice(requestParams).then((devices) => {
+  if (devices.length == 0) return;
+  devices[0].open().then(() => {
+	device = devices[0];
+    console.log("Opened device: " + device.productName, device);
+    document.getElementById("device").innerHTML = device.productName;
+    device.addEventListener("inputreport", handleInputReport);
+	//device.sendReport(outputReportId, outputReport).then(() => {
+    //  console.log("Sent output report " + outputReportId);
+    //});
+  });
+});
+
+}
+
+</script>
+</html>
