@@ -26,10 +26,19 @@ function handleDisconnectedDevice(e) {
 
 function handleInputReport(e) {
   var data = new Uint8Array(e.data.buffer);
+  var rawTemp = twosComplement(data[2] + (data[3] <<8));
+  
+  // this doesn't work too well	
   // https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
-  var rawTemp = data[2] + (data[3] <<8) + (data[4]<<16);
-  var celcius = rawTemp / 126.74 - 5.4;
-  celcius = Math.round(celcius * 10)/10
+  // var celcius = rawTemp / 126.74 - 5.4;
+  
+  // This works much better and gives exactly the same values as the official app
+  // to the nearest 0.1°C (which is the max accuracy displayed in the official app) 
+  // over the range tested (0.2°C to 84.9°C)
+  // https://chrome.google.com/webstore/detail/vernier-graphical-analysi/dncgedbnidfkppmdgfgidcepclnokpkb
+  var celcius = 0.0078117735 * rawTemp + 0.4979364513;
+  celcius = Math.round(celcius * 10)/10;
+  
   console.log(rawTemp, celcius);
   document.getElementById("temp").innerHTML = "Temperature = " + celcius + "°C";
   
@@ -49,6 +58,13 @@ navigator.hid.requestDevice(requestParams).then((devices) => {
   });
 });
 
+
+}
+
+// https://stackoverflow.com/questions/22946367/converting-twos-complement-output-to-signed-decimal
+function twosComplement(val) {
+
+	return (0x8000&val ? (0x7FFF&val)-0x8000 : val);
 }
 
 </script>
