@@ -1,0 +1,291 @@
+<html>
+
+<head>
+    <script src="godirect.js"></script>
+
+</head>
+
+<body>
+
+    <button onclick="init()">Start logging temperature from Vernier Go Direct sensor</button>
+    <button onclick="pause()">Pause</button>
+    <button onclick="resume()">Resume</button>
+
+    <div id="device"></div>
+    <div id="temp"></div>
+
+    <script>
+        // https://developer.chrome.com/articles/hid-examples/
+        // https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
+        // https://github.com/VernierST/GoIO_SDK/blob/4bd9d650c22036a77b666cebd4f3b1051b699d28/src/GoIO_cpp/GVernierUSB.h#L33
+        // https://github.com/VernierST/GoIO_SDK/blob/4bd9d650c22036a77b666cebd4f3b1051b699d28/src/GoIO_cpp/GSkipCommExt.h#L36
+        // Verner Go!Temp
+        const GO_TEMP = 0x0002;
+        // Vernier "Go Direct Sensor"
+        const GO_DIRECT = 0x0010;
+        // Vernier Go!Motion
+        // https://the-sz.com/products/usbid/index.php?v=0x08F7
+        const GO_MOTION = 0x0004;
+        const VERNIER_ST = 0x08f7;
+
+        let deviceFilter = {
+            vendorId: VERNIER_ST,
+            productId: GO_DIRECT
+        };
+        let requestParams = {
+            filters: [deviceFilter]
+        };
+
+
+        function handleDisconnectedDevice(e) {
+            console.log("Device disconnected: " + e.device.productName);
+            document.getElementById("temp").innerHTML = "Temperature = ?";
+
+        }
+
+        var mode;
+        var dataCache = [];
+        var blocksToCome = 0;
+        const nonZero = x => x !== (undefined || null || '' || 0);
+        const decoder = new TextDecoder('utf-8');
+
+        function handleInputReport(e) {
+
+            // should be length 64
+            // first byte = how many bytes that follow are relevant (probably!?!)
+            var data = new Uint8Array(e.data.buffer);
+
+            if (blocksToCome > 0) {
+
+                var length = data[0];
+                for (var i = 1; i < length + 1; i++) {
+                    dataCache.push(data[i]);
+                }
+
+                blocksToCome--;
+
+                if (blocksToCome == 0) {
+
+                    switch (mode) {
+
+                        case 85:
+
+                            //console.log("GET_INFO", dataCache);
+
+
+                            // OrderCode offset = 6 (header+cmd+counter)
+                            // Ordercode length = 16
+                            orderCode = decoder.decode(new Uint8Array(dataCache.slice(6, 6 + 16)).filter(nonZero));
+
+                            // SerialNumber offset = 22 (OrderCode offset + Ordercode length)
+                            // SerialNumber length = 16
+                            serialNumber = decoder.decode(new Uint8Array(dataCache.slice(22, 22 + 16)).filter(nonZero));
+
+                            // DeviceName offset = 38 (SerialNumber offset + SerialNumber length)
+                            // DeviceName length = 32
+                            name = decoder.decode(new Uint8Array(dataCache.slice(38, 38 + 32)).filter(nonZero));
+                            break;
+
+                        case 80:
+
+                            //console.log("GET_SENSOR_INFO", dataCache);
+                            var response = new DataView(new Uint8Array(dataCache).buffer);
+
+                            console.log("sensorId", response.getUint32(2, true));
+                            console.log("type", response.getUint8(6)); // 0 = Real64 or 1 = Int32
+                            console.log("mode", response.getUint8(7)); // 0 = Periodic, 1 = Aperiodic
+                            console.log("minValue", response.getFloat64(108, true));
+                            console.log("maxValue", response.getFloat64(116, true));
+                            console.log("uncertainty", response.getFloat64(100, true));
+                            console.log("minPeriod", response.getUint32(124, true) / 1000);
+                            console.log("maxPeriod", ((response.getUint32(132, true) << 32) + response.getUint32(128, true)) / 1000);
+                            console.log("typicalPeriod", response.getUint32(136, true) / 1000);
+                            console.log("granularity", response.getUint32(140, true) / 1000);
+                            console.log("number", response.getUint8(0));
+                            // sensorDescription offset = 14 (6 bytes (header+cmd+counter) + 8 bytes (other fields))
+                            // sensorDescription length = 60
+                            console.log("name", decoder.decode(new Uint8Array(response.buffer, 14, 60).filter(nonZero)));
+                            // sensorUnit offset = 74 (sensorDescription offset + sensorDescription length)
+                            // sensorUnit length = 32
+                            console.log("unit", decoder.decode(new Uint8Array(response.buffer, 74, 32).filter(nonZero)));
+                            console.log("mutalExclusionMask", response.getUint32(144, true));
+
+
+
+
+                            break;
+
+                        default:
+                            stopwitherror();
+                            break;
+                    }
+
+
+                }
+
+                return;
+            }
+
+
+            //console.log("response", data, data[5], e.data.getUint8(5), e.data.getUint16(10,true));
+
+            switch (data[5]) {
+
+                case NORMAL_REAL32:
+                    var response = new DataView(data.buffer);
+
+
+                    console.log("NORMAL_REAL32", response.getFloat32(10, true));
+
+                    document.getElementById("temp").innerHTML = "Temperature = " + response.getFloat32(10, true) + "°C";
+
+
+                    break;
+                case WIDE_REAL32:
+                    console.log("WIDE_REAL32");
+                    break;
+                case APERIODIC_REAL32:
+                    console.log("APERIODIC_REAL32");
+                    break;
+                case SINGLE_CHANNEL_REAL32:
+                    console.log("SINGLE_CHANNEL_REAL32");
+                    break;
+                case SINGLE_CHANNEL_INT32:
+                    console.log("SINGLE_CHANNEL_INT32");
+                    break;
+                case APERIODIC_INT32:
+                    console.log("APERIODIC_INT32");
+                    break;
+                case START_TIME:
+                    console.log("START_TIME");
+                    break;
+                case DROPPED:
+                    console.log("DROPPED");
+                    break;
+                case PERIOD:
+                    console.log("PERIOD");
+                    break;
+
+                case 80: // from GET_SENSOR_INFO
+                case 85: // from GET_INFO
+                    mode = data[5];
+                    // response 
+                    // sent in 3 blocks of 64 (1 byte length + 63)
+
+                    dataCache = [];
+                    // assume 2 more to come...
+                    blocksToCome = 2;
+
+                    var length = data[0];
+                    for (var i = 1; i < length + 1; i++) {
+                        dataCache.push(data[i]);
+                    }
+
+                    break;
+                default:
+                    console.log("unknown event ", data[5], data);
+
+            }
+
+        }
+
+        navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+
+        var commands = [];
+
+        //commands.push([25, 0x58, 25, 254, 63, 26, 165, 74, 6, 73, 7, 72, 8, 71, 9, 70, 10, 69, 11, 68, 12, 67, 13, 66, 14]);
+        // COMPULSORY, don't get sent data without this
+        commands.push(constructCommand(INIT));
+
+        // not sure what this is, seems too short (no checksum). Ignore
+        //commands.push([5, 0x58, 5, 253]);
+
+        //commands.push(constructCommand(GET_INFO));
+        //commands.push([5, 0x58, 5, 252, 174, 0x55]);
+
+        //commands.push(constructCommand(GET_DEFAULT_SENSORS_MASK));
+        //commands.push([5, 0x58, 5, 251, 174, 0x56]);
+
+        //commands.push(constructCommand(GET_SENSOR_IDS));
+        //commands.push([5, 0x58, 5, 250, 168, 0x51]);
+
+        //commands.push(constructCommand(getSensorInfoCommand(1/* TODO what is this? */)));
+        //commands.push([6, 0x58, 6, 249, 168, 0x50, 1]);
+
+        //commands.push(constructCommand(getMeasurementPeriodCommand(500000)));
+        //commands.push([15, 0x58, 15, 248, 65, 0x1b, 255, 0, 32, 161, 7, 0, 0, 0, 0, 0]);
+
+        // COMPULSORY, don't get sent data without this
+        commands.push(constructCommand(getStartMeasurementCommand(1 /* channelMask TODO, 1 = temperature? */ )));
+        //commands.push([19, 0x58, 19, 247, 124, 0x18, 255, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+        function sendCommands() {
+
+            // remove first element
+            var command = commands.shift();
+
+            if (command) {
+                device.sendReport(0, new Uint8Array(command)).then((response) => {
+                    // for Go Direct don't get anything useful in response
+
+                    // keep sending util stack empty
+                    sendCommands();
+                });
+            }
+
+
+        }
+
+        function init() {
+
+            //let outputReportId = 0x01;
+            //let outputReport = new Uint8Array([42]);
+
+
+
+
+            navigator.hid.requestDevice(requestParams).then((devices) => {
+                if (devices.length == 0) return;
+                devices[0].open().then(() => {
+                    device = devices[0];
+                    console.log("Opened device: " + device.productName, device);
+                    document.getElementById("device").innerHTML = device.productName;
+                    device.addEventListener("inputreport", handleInputReport);
+
+
+                    sendCommands();
+
+                });
+            });
+
+
+        }
+
+        function pause() {
+
+            // stop sending data STOP_MEASUREMENTS
+            commands.push([11, 0x58, 11, 246, 109, 0x19, 255, 0, 255, 255, 255, 255]);
+
+            // DISCONNECT
+            //commands.push([5, 0x58, 5, 245, 166, 0x54]);
+
+            sendCommands();
+
+
+        }
+
+        function resume() {
+            commands.push(constructCommand(getStartMeasurementCommand(2 /* channelMask TODO, 2 = temperature? */ )));
+            sendCommands();
+
+        }
+
+        // https://stackoverflow.com/questions/22946367/converting-twos-complement-output-to-signed-decimal
+        function twosComplement(val) {
+
+            return (0x8000 & val ? (0x7FFF & val) - 0x8000 : val);
+        }
+    </script>
+
+</html>
