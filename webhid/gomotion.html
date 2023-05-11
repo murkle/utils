@@ -5,74 +5,174 @@
 </head>
 
 <body>
-Open <a href="https://chrome.google.com/webstore/detail/vernier-graphical-analysi/dncgedbnidfkppmdgfgidcepclnokpkb">chrome.google.com/webstore/detail/vernier-graphical-analysi/dncgedbnidfkppmdgfgidcepclnokpkb?hl=en</a> to init the device
-<br/>
-<br/>
-Press the button once the device starts clicking
-<br/>
-<br/>
 
-<button onclick="init()">Start logging distance from Vernier Go!Motion</button>
-
+<button onclick="init()">Start logging from Vernier Go!Temp/Go!Motion</button>
 
 <div id="device"></div>
-<div id="distance"></div>
+<div id="temp"></div>
 
 <script>
-
-
-
-
 // https://developer.chrome.com/articles/hid-examples/
 // https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
-// https://github.com/VernierST/GoIO_SDK/blob/4bd9d650c22036a77b666cebd4f3b1051b699d28/src/GoIO_cpp/GVernierUSB.h#L33
-// https://github.com/VernierST/GoIO_SDK/blob/4bd9d650c22036a77b666cebd4f3b1051b699d28/src/GoIO_cpp/GSkipCommExt.h#L36
-// Verner Go!Temp
-const GO_TEMP = 0x0002;
-// Vernier Go!Motion
-// https://the-sz.com/products/usbid/index.php?v=0x08F7
-const GO_MOTION = 0x0004;
-const VERNIER_ST=0x08f7;
+const requestParams = { filters: [{ vendorId: 0x08f7 , productId: 0x0002 }, { vendorId: 0x08f7 , productId: 0x0004 }] };
+let device = null;
+let reportId = null;
+let isTemp = false;
+let isMD = false;
 
-let deviceFilter = { vendorId: VERNIER_ST , productId: GO_MOTION };
-let requestParams = { filters: [deviceFilter] };
+// Util to convert byte to nice hex string
+function byteToHex(byte) {
+  const unsignedByte = byte & 0xff;
 
+  if (unsignedByte < 16) {
+    return ` 0x0` + unsignedByte.toString(16);
+  } else {
+    return ` 0x` + unsignedByte.toString(16);
+  }
+}
+
+// Util to convert byte array to hex string.
+// bytes is an typed array (Int8Array or Uint8Array)
+function toHexString(bytes) {
+  return Array.from(bytes)
+    .map(byte => byteToHex(byte))
+    .join(``);
+}
 
 function handleDisconnectedDevice(e) {
   console.log("Device disconnected: " + e.device.productName);
-  document.getElementById("distance").innerHTML = "Distance = ?";
+  document.getElementById("temp").innerHTML = "Temperature = ?";
+}
 
+// commands
+
+// Init command with the extra 0x02 for the MD
+// cmd: 1a 02 00 00 00 00 00 00 >>> resp: 9a 1a 00 00 00 00 00 00
+const INIT = new Uint8Array([0x1a, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+const STATUS = new Uint8Array([0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+// Set measurement period to 100 ms
+const PERIOD = new Uint8Array([0x1b, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+// 1d 00 04 00 00 00 00 00 >>> 5a 1d 00 00 00 00 00 00
+const SET_LED_RED = new Uint8Array([0x1D, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00]);
+const SET_LED_GREEN = new Uint8Array([0x1D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+const SET_LED_ORANGE = new Uint8Array([0x1D, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00]);
+// 18 00 00 00 00 00 00 00 >>> 5a 18 00 00 00 00 00 00
+// For MD: 0x18, triggerType, lsbyteMeasurementCount, msbyteMeasurementCount, realTimeMeasType, flags, filterType
+// The defaults of 0x00 for all of those should work for standard data collection
+const START = new Uint8Array([0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+const STOP = new Uint8Array([0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+
+function _writeToDevice(buffer) {
+    try {
+      device.sendReport(reportId, buffer);
+      console.log(`Wrote: `, toHexString(buffer));
+
+    } catch (error) {
+      console.log(`Write Failure: ${error}`);
+    }
+}
+
+// Brute force way to just wait for the command/response to finish from the previous command/response.
+// A proper application should wait for the device to return the expected response to the commands,
+// and timeout or error as appropriate.
+function queueWriteToDevice(buffer, queueTime) {
+  setTimeout(_writeToDevice, queueTime, buffer);
 }
 
 function handleInputReport(e) {
+  //console.log("handleInputReport:", e);
   var data = new Uint8Array(e.data.buffer);
-  // https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
-  console.log(data);
-  var rawDistance = data[2] + (data[3] <<8) + (data[4]<<16);
-  console.log(rawDistance);
-  document.getElementById("distance").innerHTML = "Distance = " + rawDistance;
-  
+
+  if (data[0] == 1) {
+    // Measurement
+    if (isTemp) {
+      var raw = twosComplement(data[2] + (data[3] <<8));
+      // this doesn't work too well	
+      // https://finninday.net/wiki/index.php/Vernier_Go_Temp_USB_device_in_Linux
+      // var celcius = rawTemp / 126.74 - 5.4;
+      
+      // This works much better and gives exactly the same values as the official app
+      // to the nearest 0.1°C (which is the max accuracy displayed in the official app) 
+      // over the range tested (0.2°C to 84.9°C)
+      // https://chrome.google.com/webstore/detail/vernier-graphical-analysi/dncgedbnidfkppmdgfgidcepclnokpkb
+
+      var celcius = 0.0078117735 * raw + 0.4979364513;
+      celcius = Math.round(celcius * 10)/10;
+      
+      console.log(raw, celcius);
+      document.getElementById("temp").innerHTML = "Temperature = " + celcius + " °C";
+    }
+    else if (isMD) {
+      // MD measurements are 4 bytes, little endian
+      raw = data[2] + (data[3] << 8) + (data[4] << 16) + (data[5] << 32);
+      const meters = raw * 0.000001;
+      console.log(raw, meters);
+      document.getElementById("temp").innerHTML = "Position = " + meters + " m";
+    }
+    else {
+      console.log(raw);
+      document.getElementById("temp").innerHTML = "Unknown = " + raw;
+    }
+  }
+  else
+  {
+    // Response to a command
+    console.log("CMD RESP: ", toHexString(data));
+  }
 }
 
 navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
 
-var device;
-
 function init() {
+  isTemp = false;
+  isMD = false;
+  navigator.hid.requestDevice(requestParams).then((devices) => {
+    if (devices.length == 0) return;
+    devices[0].open().then(() => {
+      device = devices[0];
+      reportId = device.collections[0].outputReports[0].reportId;
+      device.oninputreport = handleInputReport;
+      console.log("Opened device: " + device.productName, device);
+    
+      switch(device.productId) {
+        case 0x02:
+          isTemp = true;
+          break;
+        case 0x04:
+          isMD = true;
+          break;
+        default:
+          break;
+      }
+      document.getElementById("device").innerHTML = device.productName;
 
-navigator.hid.requestDevice(requestParams).then((devices) => {
-  if (devices.length == 0) return;
-  devices[0].open().then(() => {
-	device = devices[0];
-    console.log("Opened device: " + device.productName, device);
-    document.getElementById("device").innerHTML = device.productName;
-    device.addEventListener("inputreport", handleInputReport);
-	//device.sendReport(outputReportId, outputReport).then(() => {
-    //  console.log("Sent output report " + outputReportId);
-    //});
+      // Write Init Command
+      queueWriteToDevice(INIT, 10);
+
+      // Set LED State
+      queueWriteToDevice(SET_LED_GREEN, 300);
+
+      queueWriteToDevice(PERIOD, 600);
+
+      // Write Start Command
+      queueWriteToDevice(START, 1000);
+
+      // After 10 seconds, stop and close
+      setTimeout(() => {
+        queueWriteToDevice(STOP, 10);
+        queueWriteToDevice(SET_LED_ORANGE, 300);
+        setTimeout(() => {
+          device.close();
+        }, 1000);
+      }, 10000);
+    });
   });
-});
+}
 
+// https://stackoverflow.com/questions/22946367/converting-twos-complement-output-to-signed-decimal
+function twosComplement(val) {
+
+	return (0x8000&val ? (0x7FFF&val)-0x8000 : val);
 }
 
 </script>
