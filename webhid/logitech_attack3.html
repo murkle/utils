@@ -1,0 +1,88 @@
+<html>
+<head>
+
+
+</head>
+
+<body>
+
+<button onclick="init()">Start listening to events from Logitech Attack III Joystick</button>
+
+<div id="device"></div>
+<div id="message"></div>
+
+<script>
+
+let deviceFilter = { vendorId: 0x046d , productId: 0xc214 };
+let requestParams = { filters: [deviceFilter] };
+
+
+function handleDisconnectedDevice(e) {
+  console.log("Device disconnected: " + e.device.productName);
+  document.getElementById("message").innerHTML = "Device disconnected";
+
+}
+
+function handleInputReport(e) {
+  var data = new Uint8Array(e.data.buffer);
+  
+  var x = data[0];
+  var y = data[1];
+  var slider = data[2];
+  var buttons = data[3] + (data[4]<<8);
+  var fire = (buttons & 1) != 0;
+  var button2 = (buttons & (1<<1)) != 0;
+  var button3 = (buttons & (1<<2)) != 0;
+  var button4 = (buttons & (1<<3)) != 0;
+  var button5 = (buttons & (1<<4)) != 0;
+  var button6 = (buttons & (1<<5)) != 0;
+  var button7 = (buttons & (1<<6)) != 0;
+  var button8 = (buttons & (1<<7)) != 0;
+  var button9 = (buttons & (1<<8)) != 0;
+  var button10 = (buttons & (1<<9)) != 0;
+  var button11 = (buttons & (1<<10)) != 0;
+  
+  var message = "";
+  message += "<br/>x = " + x;
+  message += "<br/>y = " + y;
+  message += "<br/>slider = " + slider;
+  
+  if (fire) message += "<br/>Fire pressed";
+  if (button2) message += "<br/>Button2 pressed";
+  if (button3) message += "<br/>Button3 pressed";
+  if (button4) message += "<br/>Button4 pressed";
+  if (button5) message += "<br/>Button5 pressed";
+  if (button6) message += "<br/>Button6 pressed";
+  if (button7) message += "<br/>Button7 pressed";
+  if (button8) message += "<br/>Button8 pressed";
+  if (button9) message += "<br/>Button9 pressed";
+  if (button10) message += "<br/>Button10 pressed";
+  if (button11) message += "<br/>Button11 pressed";
+  
+  document.getElementById("message").innerHTML = message;
+  
+  
+  
+  console.log(data, x, y, slider, fire, button2, button3, button4, button5, button6, button7, button8);
+  
+}
+
+navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+function init() {
+
+navigator.hid.requestDevice(requestParams).then((devices) => {
+  if (devices.length == 0) return;
+  devices[0].open().then(() => {
+	device = devices[0];
+    console.log("Opened device: " + device.productName, device);
+    document.getElementById("device").innerHTML = device.productName;
+    device.addEventListener("inputreport", handleInputReport);
+  });
+});
+
+
+}
+
+</script>
+</html>
