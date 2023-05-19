@@ -34,7 +34,7 @@
 		  // data comes in (max) 64-byte chunks
 		  buffer += jsonPart;
 		  if (buffer.trim().endsWith("}")) {
-			  var json = JSON.parse(buffer);
+			  var json = JSON.parse(buffer.trim());
 			  console.log(json);
 			  //console.log("version", json.apiVersion);
 			  //console.log("leftButton", json.leftButton);
