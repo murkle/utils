@@ -33,7 +33,7 @@
 		  
 		  // data comes in (max) 64-byte chunks
 		  buffer += jsonPart;
-		  if (buffer.endsWith("}")) {
+		  if (buffer.trim().endsWith("}")) {
 			  var json = JSON.parse(buffer);
 			  console.log(json);
 			  //console.log("version", json.apiVersion);
