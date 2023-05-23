@@ -3,6 +3,9 @@ https://www.amazon.co.uk/gp/product/B075FYYLLV/
 DS18B20 library https://how2electronics.com/interfacing-ds18b20-sensor-with-raspberry-pi-pico/
 https://github.com/pstolarz/OneWireNg
 https://github.com/pstolarz/Arduino-Temperature-Control-Library/tree/OneWireNg
+
+To upload your first sketch, you will need to hold the BOOTSEL button down while plugging in the Pico to your computer.
+Then hit the upload button and the sketch should be transferred and start to run.
 */
 
 #include <OneWire.h>
