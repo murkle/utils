@@ -31,7 +31,7 @@ DallasTemperature sensors(&oneWire);
 
 Adafruit_USBD_WebUSB usb_web;
 // define the URL where the system notification should point to
-WEBUSB_URL_DEF(landingPage, 1, "https://murkle.github.io/utils/webusb/web-usb.html");
+WEBUSB_URL_DEF(landingPage, 1, "murkle.github.io/utils/webusb/web-usb.html");
 
 // default button state
 byte prevButtonState = LOW;
