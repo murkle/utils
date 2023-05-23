@@ -25,7 +25,7 @@
 		 port.onReceive = data => {
           let textDecoder = new TextDecoder();
 		  var jsonPart = textDecoder.decode(data);
-		  //console.log(jsonPart);
+		  console.log(jsonPart);
 		  
 		  if (jsonPart.startsWith("{")) {
 			buffer = "";
@@ -40,7 +40,7 @@
 			  //console.log("leftButton", json.leftButton);
 			  buffer = "";
 			  
-		  }
+		  } 
 		  
 		  
 		  
