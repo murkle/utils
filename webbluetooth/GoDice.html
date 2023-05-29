@@ -1,0 +1,252 @@
+<html>
+
+<head>
+</head>
+
+<body>
+	<button onclick="connect()">Connect Go Dice</button>
+	<button onclick="flash(0)">Flash die 0</button>
+	<button onclick="flash(1)">Flash die 1</button>
+	<button onclick="battery(0)">Battery die 0</button>
+	<button onclick="battery(1)">Battery die 1</button>
+	<button onclick="dieColor(0)">Get actual color of die 0</button>
+	<button onclick="dieColor(1)">Get actual color of die 1</button>
+	<button onclick="setColors(0)">Set color(s) of die 0 LED(s)</button>
+	<button onclick="setColors(1)">Set color(s) of die 1 LED(s)</button>
+	<div id="result0"></div>
+	<div id="result1"></div>
+	<div id="result2"></div>
+	<div id="result3"></div>
+	<div id="result4"></div>
+	<div id="result5"></div>
+	<div id="result6"></div>
+	<div id="result7"></div>
+	<div id="result8"></div>
+	<div id="result9"></div>
+	<script>
+	// https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.5.1/nrf/include/bluetooth/services/nus.html
+	const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+	const CHARACTERISTIC_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+	const CHARACTERISTIC_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
+	const MESSAGE_GET_BATTERY_LEVEL = 3;
+	const MESSAGE_GET_DIE_COLOR = 23;
+	const MESSAGE_FLASH_LED = 16;
+	const MESSAGE_SET_LED_COLORS = 8;
+	const EVENT_BATTERY_LEVEL = 0x42;
+	const EVENT_DIE_COLOR = 0x43;
+	const EVENT_UNKNOWN = 0x68;
+	const EVENT_ROLL_STARTED = 0x52;
+	const EVENT_ROLL_FINISHED = 0x53;
+	const diceColors = ["Black", "Red", "Green", "Blue", "Yellow", "Orange"];
+	// possible sorts of roll
+	var types = [];
+	types[0] = "Regular roll"; // value 0 not explicitly returned, set in code
+	types[0x46] = "fake placed";
+	types[0x4d] = "placed";
+	types[0x54] = "tilted?";
+
+	function flash(index) {
+		var noOfFlashes = 10;
+		// time / 10ms
+		var on = 3;
+		var off = 1;
+		// rgb 0 - 255
+		var r = 0;
+		var g = 0;
+		var b = 255;
+		sendMessage(index, [MESSAGE_FLASH_LED, noOfFlashes, on, off, r, g, b, 1, 0]);
+	}
+
+  function setColors(index) {
+		var noOfFlashes = 10;
+		// rgb 0 - 255
+		var r = 255;
+		var g = 255;
+		var b = 255;
+		var r2 = 255;
+		var g2 = 255;
+		var b2 = 255;
+		// each die has 2 LEDs
+		// battery low -> colours go wrong??? eg just red works
+		sendMessage(index, [MESSAGE_SET_LED_COLORS, r, g, b, r, g, b]);
+	}
+
+	function battery(index) {
+		sendMessage(index, [MESSAGE_GET_BATTERY_LEVEL]);
+	}
+
+	function dieColor(index) {
+		sendMessage(index, [MESSAGE_GET_DIE_COLOR]);
+	}
+
+	function sendMessage(index, message) {
+		service = services[names[index]];
+		service.getCharacteristic(CHARACTERISTIC_RX).then(characteristic => {
+			characteristic.writeValue(new Uint8Array(message))
+		});
+	}
+	class Vector3 {
+		constructor(x, y, z) {
+			this.x = x;
+			this.y = y;
+			this.z = z;
+		}
+		static dot(v1, v2) {
+			return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+		}
+		normalize() {
+			let length = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+			if(length > 0) {
+				this.x /= length;
+				this.y /= length;
+				this.z /= length;
+			}
+		}
+	}
+	// vectors for D6
+	// should be normalized
+	let vectorsD6 = [new Vector3(-1, 0, 0), new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(0, -1, 0), new Vector3(0, 0, -1), new Vector3(1, 0, 0)];
+
+	function showMessage(die, str) {
+		var dieIndex = names.indexOf(die);
+		document.getElementById("result" + dieIndex).innerHTML = die + "<br/>" + str + "<br/>";
+	}
+	// die returns x, y, z of direction it is currently includes
+	// decide which way it's landed by calculating the dot product with each direction vector
+	// ChatGPT says:
+	// One way to find the closest direction between a vector and a set of vectors is to calculate the dot product. The dot product of two vectors is equal to the cosine of the angle between them multiplied by the magnitudes of both vectors. If your vectors are normalized (i.e., their lengths equal to 1), then the dot product just equals the cosine of the angle, which is a nice property to exploit here.
+	// The cosine of the angle between the vectors will be highest (closest to 1) when the vectors are closest in direction. Thus, you could normalize your arbitrary vector and the six direction vectors, then compute the dot product of the arbitrary vector with each direction vector. The direction vector with the highest dot product is the one that is closest in direction to your arbitrary vector.
+	function getValue(x, y, z) {
+		// TODO: handle different # of sides
+		var vectors = vectorsD6;
+		var diceThrow = new Vector3(x, y, z);
+		diceThrow.normalize();
+		let maxDot = -Infinity;
+		let closestVectorIndex = -1;
+		for(let i = 0; i < vectors.length; i++) {
+			let dot = Vector3.dot(diceThrow, vectors[i]);
+			if(dot > maxDot) {
+				maxDot = dot;
+				closestVectorIndex = i;
+			}
+		}
+		return closestVectorIndex + 1;
+	}
+
+	function characteristicValueChanged(event, name) {
+		//console.log("event from die ", name, event);
+		// DataView
+		var data = event.currentTarget.value;
+		//console.log(data);
+		// ArrayBuffer
+		var buff = data.buffer;
+		// type of roll eg regular, placed
+		var type = 0;
+		var mode;
+		var x, y, z;
+		var len = buff.byteLength;
+		switch (len) {
+			case 1:
+				var mode = data.getUint8(0);
+				break;
+			case 4:
+				var mode = data.getUint8(0);
+				var x = data.getInt8(1);
+				var y = data.getInt8(2);
+				var z = data.getInt8(3);
+				break;
+			case 5:
+				var type = data.getUint8(0);
+				var mode = data.getUint8(1);
+				var x = data.getInt8(2);
+				var y = data.getInt8(3);
+				var z = data.getInt8(4);
+				break;
+			default:
+				console.error("unhandled case: " + len + " bytes");
+		}
+		switch (mode) {
+			case EVENT_BATTERY_LEVEL:
+				// this event sent automatically when battery charging
+				// as well as when requested with MESSAGE_GET_BATTERY_LEVEL
+				showMessage(name, "battery level " + z + "/100");
+				break;
+			case EVENT_DIE_COLOR:
+				showMessage(name, "color " + diceColors[z]);
+				break;
+			case EVENT_ROLL_STARTED:
+				showMessage(name, "roll started");
+				break;
+			case EVENT_ROLL_FINISHED:
+				showMessage(name, "rolled value = " + getValue(x, y, z) + " " + types[type]);
+				break;
+			default:
+				// sends [0x43, 0x68, 0x61, 0x72, 0x00] sometimes
+				// maybe charging started?
+				showMessage(name, "unknown mode 0x" + mode.toString(16));
+				break;
+		}
+	}
+	// eg ["GoDice_A757B5_B_v04", "GoDice_B7D0A7_K_v04"]
+	var names = [];
+	// all these indexed by eg names[0]
+	var ids = [];
+	var devices = [];
+	var services = [];
+	var servers = [];
+	var characteristics = [];
+	var descriptorses = [];
+
+	function connect() {
+		// https://googlechrome.github.io/samples/web-bluetooth/device-info.html
+		let filters = [];
+		// name is eg GoDice_B7D0A7_K_v04
+		filters.push({
+			namePrefix: "GoDice_"
+		});
+		let options = {
+			"optionalServices": [SERVICE_UUID]
+		};
+		options.filters = filters;
+		navigator.bluetooth.requestDevice(options).then(device => {
+			console.log('> Name:             ' + device.name);
+			console.log('> Id:               ' + device.id);
+			console.log('> Connected:        ' + device.gatt.connected);
+			if(names.includes(device.name)) {
+				console.log(device.name + " already connected");
+				return;
+			}
+			names.push(device.name);
+			ids[device.name] = device.id;
+			return device.gatt.connect().then(server => {
+				console.log("server", server);
+				server[device.name] = server;
+				return server.getPrimaryService(SERVICE_UUID);
+			}).then(service => {
+				console.log("service", service);
+				services[device.name] = service;
+				return service.getCharacteristic(CHARACTERISTIC_TX);
+			}).then(characteristic => {
+				console.log("characteristic", characteristic);
+				characteristics[device.name] = characteristic;
+				characteristic.addEventListener('characteristicvaluechanged', function(event) {
+					characteristicValueChanged(event, device.name)
+				});
+				characteristic.startNotifications().then(() => {
+					console.log("OK")
+				});
+				return characteristic.getDescriptors();
+			}).then(descriptors => {
+				descriptorses[device.name] = descriptors;
+				// https://www.bluetooth.com/specifications/assigned-numbers/
+				// 0x2902 = Client Characteristic Configuration
+				// returns BluetoothRemoteGATTDescriptor with uuid: "00002902-0000-1000-8000-00805f9b34fb"
+				console.log("descriptors", descriptors);
+				//
+			})
+		})
+	}
+	</script>
+</body>
+
+</html>
