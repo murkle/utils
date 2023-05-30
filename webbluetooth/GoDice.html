@@ -34,7 +34,7 @@
 	const MESSAGE_SET_LED_COLORS = 8;
 	const EVENT_BATTERY_LEVEL = 0x42;
 	const EVENT_DIE_COLOR = 0x43;
-	const EVENT_UNKNOWN = 0x68;
+	const EVENT_CHARGING_START_END = 0x68;
 	const EVENT_ROLL_STARTED = 0x52;
 	const EVENT_ROLL_FINISHED = 0x53;
 	const diceColors = ["Black", "Red", "Green", "Blue", "Yellow", "Orange"];
@@ -44,7 +44,7 @@
 	types[0x46] = "fake placed";
 	types[0x4d] = "placed";
 	types[0x54] = "tilted?";
-
+	// flashes both LEDs then turns them both off
 	function flash(index) {
 		var noOfFlashes = 10;
 		// time / 10ms
@@ -56,19 +56,19 @@
 		var b = 255;
 		sendMessage(index, [MESSAGE_FLASH_LED, noOfFlashes, on, off, r, g, b, 1, 0]);
 	}
-	// runs battery down fast!!!
+
 	function setColors(index) {
 		var noOfFlashes = 10;
 		// rgb 0 - 255
-		var r = 255;
+		var r = 0;
 		var g = 255;
-		var b = 255;
+		var b = 0;
 		var r2 = 255;
-		var g2 = 255;
-		var b2 = 255;
-		// each die has 2 LEDs
+		var g2 = 0;
+		var b2 = 0;
+		// each die has 2 independent LEDs
 		// battery low -> colours go wrong??? eg just red works
-		sendMessage(index, [MESSAGE_SET_LED_COLORS, r, g, b, r, g, b]);
+		sendMessage(index, [MESSAGE_SET_LED_COLORS, r, g, b, r2, g2, b2]);
 	}
 
 	function battery(index) {
@@ -180,10 +180,19 @@
 			case EVENT_ROLL_FINISHED:
 				showMessage(name, "rolled value = " + getValue(x, y, z) + " " + types[type]);
 				break;
+			case EVENT_CHARGING_START_END:
+				// [0x43, 0x68, 0x61, 0x72, 0x01] die is placed on charger
+				// [0x43, 0x68, 0x61, 0x72, 0x00] die is removed fom charger
+				showMessage(name, (z == 1) ? " placed on charger" : " removed from charger");
+				break;
 			default:
 				// sends [0x43, 0x68, 0x61, 0x72, 0x00] sometimes
-				// maybe charging started?
-				showMessage(name, "unknown mode 0x" + mode.toString(16));
+				// maybe charging started/ended?
+				var message = "unknown message:";
+				for(var i = 0; i < len; i++) {
+					message += " 0x" + data.getUint8(i).toString(16);
+				}
+				showMessage(name, message);
 				break;
 		}
 	}
