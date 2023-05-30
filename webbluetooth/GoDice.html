@@ -56,8 +56,8 @@
 		var b = 255;
 		sendMessage(index, [MESSAGE_FLASH_LED, noOfFlashes, on, off, r, g, b, 1, 0]);
 	}
-
-  function setColors(index) {
+	// runs battery down fast!!!
+	function setColors(index) {
 		var noOfFlashes = 10;
 		// rgb 0 - 255
 		var r = 255;
@@ -197,6 +197,36 @@
 	var characteristics = [];
 	var descriptorses = [];
 
+	function addDevice(device) {
+		if(names.includes(device.name)) {
+			console.log(device.name + " already connected");
+			return;
+		}
+		names.push(device.name);
+		ids[device.name] = device.id;
+		return device.gatt.connect().then(server => {
+			server[device.name] = server;
+			return server.getPrimaryService(SERVICE_UUID);
+		}).then(service => {
+			services[device.name] = service;
+			return service.getCharacteristic(CHARACTERISTIC_TX);
+		}).then(characteristic => {
+			characteristics[device.name] = characteristic;
+			characteristic.addEventListener('characteristicvaluechanged', function(event) {
+				characteristicValueChanged(event, device.name)
+			});
+			characteristic.startNotifications().then(() => {
+				console.log(device.name + " started OK")
+			});
+			return characteristic.getDescriptors();
+		}).then(descriptors => {
+			descriptorses[device.name] = descriptors;
+			// https://www.bluetooth.com/specifications/assigned-numbers/
+			// 0x2902 = Client Characteristic Configuration
+			// GoDice return BluetoothRemoteGATTDescriptor with uuid: "00002902-0000-1000-8000-00805f9b34fb"
+		})
+	}
+
 	function connect() {
 		// https://googlechrome.github.io/samples/web-bluetooth/device-info.html
 		let filters = [];
@@ -212,40 +242,19 @@
 			console.log('> Name:             ' + device.name);
 			console.log('> Id:               ' + device.id);
 			console.log('> Connected:        ' + device.gatt.connected);
-			if(names.includes(device.name)) {
-				console.log(device.name + " already connected");
-				return;
-			}
-			names.push(device.name);
-			ids[device.name] = device.id;
-			return device.gatt.connect().then(server => {
-				console.log("server", server);
-				server[device.name] = server;
-				return server.getPrimaryService(SERVICE_UUID);
-			}).then(service => {
-				console.log("service", service);
-				services[device.name] = service;
-				return service.getCharacteristic(CHARACTERISTIC_TX);
-			}).then(characteristic => {
-				console.log("characteristic", characteristic);
-				characteristics[device.name] = characteristic;
-				characteristic.addEventListener('characteristicvaluechanged', function(event) {
-					characteristicValueChanged(event, device.name)
-				});
-				characteristic.startNotifications().then(() => {
-					console.log("OK")
-				});
-				return characteristic.getDescriptors();
-			}).then(descriptors => {
-				descriptorses[device.name] = descriptors;
-				// https://www.bluetooth.com/specifications/assigned-numbers/
-				// 0x2902 = Client Characteristic Configuration
-				// returns BluetoothRemoteGATTDescriptor with uuid: "00002902-0000-1000-8000-00805f9b34fb"
-				console.log("descriptors", descriptors);
-				//
-			})
+			addDevice(device);
 		})
 	}
+	// check if any dice already have user permission on the page
+	// allows devices to work after page refresh
+	// https://googlechrome.github.io/samples/web-bluetooth/get-devices.html
+	navigator.bluetooth.getDevices().then(devices => {
+		console.log('> Got ' + devices.length + ' Bluetooth devices.');
+		for(const device of devices) {
+			console.log(device.name);
+			addDevice(device);
+		}
+	})
 	</script>
 </body>
 
