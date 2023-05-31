@@ -1,0 +1,365 @@
+<html>
+
+<head>
+</head>
+
+<body>
+	<button onclick="connect()">Connect Go Cube</button>
+	<button onclick="orientation(true)">Enable orientation</button>
+	<button onclick="orientation(false)">Disable Orientation</button>
+	<button onclick="getBattery()">Get Battery Status</button>
+	<button onclick="getState()">Get state</button>
+	<button onclick="getStats()">Get stats</button>
+	<button onclick="getCubeType()">Get cube type</button>
+	<button onclick="reboot()">Reboot</button>
+	<button onclick="setSolvedState()">Set solved state</button>
+	<button onclick="flashLED(true)">Flash LED</button>
+	<button onclick="flashLED(false)">Slow Flash LED</button>
+	<button onclick="toggleBacklight()">Toggle Backlight</button>
+	<div id="result0"></div>
+	<div id="result1"></div>
+	<div id="result2"></div>
+	<div id="result3"></div>
+	<div id="result4"></div>
+	<div id="result5"></div>
+	<div id="result6"></div>
+	<div id="result7"></div>
+	<div id="result8"></div>
+	<div id="result9"></div>
+	<script>
+	// https://developer.nordicsemi.com/nRF_Connect_SDK/doc/1.5.1/nrf/include/bluetooth/services/nus.html
+	const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+	const CHARACTERISTIC_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+	const CHARACTERISTIC_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+	// https://github.com/oddpetersson/gocube-protocol
+	const EVENT_HEADER = 0x2a;
+	const EVENT_ROTATION = 0x01;
+	const EVENT_STATE = 0x02;
+	const EVENT_ORIENTATION = 0x03;
+	const EVENT_BATTERY = 0x05;
+	const EVENT_CHARGE_PLUG_UNPLUG = 0x06;
+	const EVENT_OFFLINE_STATS = 0x07;
+	const EVENT_CUBE_TYPE = 0x08;
+	const MESSAGE_DISABLE_ORIENTATION = 0x37;
+	const MESSAGE_ENABLE_ORIENTATION = 0x38;
+	const MESSAGE_GET_BATTERY = 0x32;
+	const MESSAGE_GET_STATE = 0x33;
+	const MESSAGE_GET_STATS = 0x39;
+	const MESSAGE_GET_CUBE_TYPE = 0x56;
+	const MESSAGE_REBOOT = 0x34;
+	const MESSAGE_SET_SOLVED_STATE = 0x35;
+	const MESSAGE_LED_FLASH = 0x41;
+	const MESSAGE_LED_TOGGLE_ANIMATION = 0x42;
+	const MESSAGE_LED_FLASH_SLOW = 0x43;
+	const MESSAGE_LED_TOGGLE = 0x44;
+	const MESSAGE_CALIBRATE_ORIENTATION = 0x57;
+
+	function reboot() {
+		sendMessage(0, MESSAGE_REBOOT);
+	}
+
+	function setSolvedState() {
+		sendMessage(0, MESSAGE_SET_SOLVED_STATE);
+	}
+
+	function toggleBacklight() {
+		sendMessage(0, MESSAGE_LED_TOGGLE_ANIMATION);
+	}
+
+	function getCubeType() {
+		sendMessage(0, MESSAGE_GET_CUBE_TYPE);
+	}
+
+	function getStats() {
+		sendMessage(0, MESSAGE_GET_STATS);
+	}
+
+	function getState() {
+		sendMessage(0, MESSAGE_GET_STATE);
+	}
+
+	function getBattery() {
+		sendMessage(0, MESSAGE_GET_BATTERY);
+	}
+
+	function orientation(enable) {
+		sendMessage(0, enable ? MESSAGE_ENABLE_ORIENTATION : MESSAGE_DISABLE_ORIENTATION);
+	}
+
+	function flashLED(fast) {
+		sendMessage(0, fast ? MESSAGE_LED_FLASH : MESSAGE_LED_FLASH_SLOW);
+	}
+
+	function sendMessage(index, message) {
+		service = services[names[index]];
+		console.log(service, message);
+		service.getCharacteristic(CHARACTERISTIC_RX).then(characteristic => {
+			characteristic.writeValue(new Uint8Array([message]));
+		});
+	}
+
+	function showMessage(die, str) {
+		var dieIndex = names.indexOf(die);
+		var message = die + "<br/>" + str + "<br/>";
+		console.log(str);
+		document.getElementById("result" + dieIndex).innerHTML = message;
+	}
+
+	function getFaceColor(face) {
+		switch (face) {
+			case 0:
+				return "Blue";
+			case 1:
+				return "Green";
+			case 2:
+				return "White";
+			case 3:
+				return "Yellow";
+			case 4:
+				return "Red";
+			case 5:
+				return "Orange";
+			default:
+				return "Unknown";
+		}
+	}
+
+	function getFaces(data, offset) {
+		var ret = "";
+		for(var i = 0; i < 4; i++) {
+			ret += getFaceColor(data.getUint8(offset + i));
+			if(i < 4) {
+				ret += ", ";
+			}
+		}
+		return ret;
+	}
+
+	function characteristicValueChanged(event, name) {
+		//console.log("event from die ", name, event);
+		// DataView
+		var data = event.currentTarget.value;
+		//console.log(data);
+		// ArrayBuffer
+		var buff = data.buffer;
+		var len = buff.byteLength;
+		// type of roll eg regular, placed
+		var type = 0;
+		var mode;
+		var x, y, z;
+		// Go Cube
+		if(data.getUint8(0) != EVENT_HEADER) {
+			console.log("bad header", "0x" + data.getUint8(0).toString(16));
+			return;
+		}
+		// ignore data.getUint8(1)
+		// "bytes to follow"
+		var command = data.getUint8(2);
+		switch (command) {
+			case EVENT_ROTATION:
+				console.log("turn");
+				var rotation = data.getUint8(4);
+				if(rotation == 0) {
+					rotation = 12;
+				}
+				rotation = rotation + " o'clock";
+				switch (data.getUint8(3)) {
+					// not returned for 2x2 cubes
+					case 0:
+						showMessage(name, "Blue, clockwise " + rotation);
+						break;
+					case 1:
+						showMessage(name, "Blue, anti-clockwise " + rotation);
+						break;
+						// 2x2 & 3x3
+					case 2:
+						showMessage(name, "Green, clockwise " + rotation);
+						break;
+					case 3:
+						showMessage(name, "Green, anti-clockwise " + rotation);
+						break;
+						// 2x2 & 3x3
+					case 4:
+						showMessage(name, "White, clockwise " + rotation);
+						break;
+					case 5:
+						showMessage(name, "White, anti-clockwise " + rotation);
+						break;
+						// not returned for 2x2 cubes
+					case 6:
+						showMessage(name, "Yellow, clockwise " + rotation);
+						break;
+					case 7:
+						showMessage(name, "Yellow, anti-clockwise " + rotation);
+						break;
+						// 2x2 & 3x3
+					case 8:
+						showMessage(name, "Red, clockwise " + rotation);
+						break;
+					case 9:
+						showMessage(name, "Red, anti-clockwise " + rotation);
+						break;
+						// not returned for 2x2 cubes
+					case 10:
+						showMessage(name, "Orange, clockwise " + rotation);
+						break;
+					case 11:
+						showMessage(name, "Orange, anti-clockwise " + rotation);
+						break;
+					default:
+						showMessage(name, "unknown EVENT_ROTATION event", data.getUint8(3), data.getUint8(4));
+						break;
+				}
+				break;
+			case EVENT_BATTERY:
+				showMessage(name, "Battery status = " + data.getUint8(3) + "/100");
+				break;
+			case EVENT_CHARGE_PLUG_UNPLUG:
+				console.log((data.getUint8(3) == 0) ? "charging cable unplugged" : "charging started");
+				break;
+			case EVENT_CUBE_TYPE:
+				var msg = "Cube Type: ";
+				// ignore header and last two bytes (always 0x0d 0x0a)
+				// 2x2 cube returns 0x2a 0x05 0x08 0x08 0x3f 0x0d 0x0a
+				for(var i = 3; i < len - 2; i++) {
+					var val = data.getUint8(i);
+					msg += ("0x" + val.toString(16) + " ");
+				}
+				showMessage(name, msg);
+				break;
+			case EVENT_OFFLINE_STATS:
+				var msg = "Stats: ";
+				// ignore header and last two bytes (always 0x0d 0x0a)
+				// # is used as delimiter
+				// Format: moves#time#solves (?)
+				// 2x2 cube always returns 
+				// 0x30 # 0x30 # 0x30 0x10
+				for(var i = 3; i < len - 2; i++) {
+					var val = data.getUint8(i);
+					msg += val == "#".charCodeAt(0) ? "# " : ("0x" + val.toString(16) + " ");
+				}
+				showMessage(name, msg);
+				break;
+			case EVENT_STATE:
+				if(len == 60 + 4) {
+					console.log("3x3 cube");
+				} else if(len == 36) {
+					// 0x2a header
+					// 0x22 # bytes to follow
+					// 0x02 EVENT_STATE
+					// Constant value: 0x00 (blue)
+					// (4 bytes) The colors visable on the blue face, starting top left going clockwise
+					// Constant value: 0x01 (green)
+					// (4 bytes) The colors visable on the green face, starting top left going clockwise
+					// Constant value: 0x02 (white)
+					// (4 bytes) The colors visable on the white face, starting top left going clockwise
+					// Constant value: 0x03 (yellow)
+					// (4 bytes) The colors visable on the yellow face, starting top left going clockwise
+					// Constant value: 0x04 (red)
+					// (4 bytes) The colors visable on the red face, starting top left going clockwise
+					// Constant value: 0x05 (orange)
+					// (4 bytes) The colors visable on the orange face, starting top left going clockwise
+					// 0x99 end message constant (??)
+					// 0x0d ASCII CR
+					// 0x0a ASCII LF
+					console.log("2x2 cube ");
+					var msg = "";
+					for(var i = 0; i < 6; i++) {
+						msg = msg + "<br/>Colors on '" + getFaceColor(data.getUint8(3 + 5 * i)) + "' face: " + getFaces(data, 4 + 5 * i);
+					}
+					var solved = true;
+					for(var i = 0; i < 6; i++) {
+						var col1 = data.getUint8(4 + 5 * i);
+						var col2 = data.getUint8(5 + 5 * i);
+						var col3 = data.getUint8(6 + 5 * i);
+						var col4 = data.getUint8(7 + 5 * i);
+						solved = solved && col1 == col2 && col1 == col3 && col1 == col4;
+					}
+					msg = msg + "<br/>Solved = " + solved;
+					showMessage(name, "State " + msg);
+				}
+				break;
+			default:
+				console.log("unknown command ", "0x" + command.toString(16));
+		}
+	}
+	// eg ["GoCube2x2_14FA90", "GoDice_A757B5_B_v04", "GoDice_B7D0A7_K_v04"]
+	var names = [];
+	// all these indexed by eg names[0]
+	var ids = [];
+	var devices = [];
+	var services = [];
+	var servers = [];
+	var characteristics = [];
+	var descriptorses = [];
+
+	function addDevice(device) {
+		if(names.includes(device.name)) {
+			console.log(device.name + " already connected");
+			return;
+		}
+		names.push(device.name);
+		ids[device.name] = device.id;
+		return device.gatt.connect().then(server => {
+			server[device.name] = server;
+			return server.getPrimaryService(SERVICE_UUID);
+		}).then(service => {
+			services[device.name] = service;
+			return service.getCharacteristic(CHARACTERISTIC_TX);
+		}).then(characteristic => {
+			characteristics[device.name] = characteristic;
+			characteristic.addEventListener('characteristicvaluechanged', function(event) {
+				characteristicValueChanged(event, device.name)
+			});
+			characteristic.startNotifications().then(() => {
+				console.log(device.name + " started OK");
+				alert("Ready!\n" + device.name);
+				flashLED(true);
+			});
+			return characteristic.getDescriptors();
+		}).then(descriptors => {
+			descriptorses[device.name] = descriptors;
+			// https://www.bluetooth.com/specifications/assigned-numbers/
+			// 0x2902 = Client Characteristic Configuration
+			// GoDice return BluetoothRemoteGATTDescriptor with uuid: "00002902-0000-1000-8000-00805f9b34fb"
+		}).catch(e => {
+			console.log(e, device);
+			// (probably) automatic connection failed, remove from 'names' so that user can still connect with browser dialog
+			names.pop(device.name);
+		})
+	}
+
+	function connect() {
+		// https://googlechrome.github.io/samples/web-bluetooth/device-info.html
+		let filters = [];
+		// name is eg GoCube2x2_14FA90
+		filters.push({
+			namePrefix: "GoCube2x2_"
+		});
+		let options = {
+			"optionalServices": [SERVICE_UUID]
+		};
+		options.filters = filters;
+		navigator.bluetooth.requestDevice(options).then(device => {
+			console.log('> Name:             ' + device.name);
+			console.log('> Id:               ' + device.id);
+			console.log('> Connected:        ' + device.gatt.connected);
+			addDevice(device);
+		})
+	}
+	// check if any dice already have user permission on the page
+	// allows devices to work after page refresh
+	// https://googlechrome.github.io/samples/web-bluetooth/get-devices.html
+	navigator.bluetooth.getDevices().then(devices => {
+		console.log('> Found ' + devices.length + ' Bluetooth devices:');
+		for(const device of devices) {
+			console.log(device.name);
+			if(device.name.startsWith("GoCube")) {
+				addDevice(device);
+			}
+		}
+	})
+	</script>
+</body>
+
+</html>
