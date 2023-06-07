@@ -7,6 +7,7 @@
 	<div id="message"></div>
 	<script>
 	// also see https://www.onlinemusictools.com/webmiditest/ for nice simple demo
+	// and https://jazz-soft.net/download/web-midi/web-midi-test.html
 	function processMessage(msg) {
 		data = msg.data;
 		var command = data[0];
@@ -45,36 +46,13 @@
 				break;
 		}
 	}
-	var midiInput;
-	var midiOutput;
+	var webMidi;
+	var midiInputs = [];
+	var midiOutputs = [];
 	navigator.requestMIDIAccess().then((midiAccess) => {
-		midiInput = midiAccess.inputs.values().next().value;
-		// quick hack
-		// ChromeOS returns (dummy) MIDI object as first midi device
-		//if(midiInput && midiInput.name.startsWith("Midi Through Port")) {
-		//	console.log("discarding", midiInput);
-		//	midiInput = midiAccess.inputs.values().next().value;
-		//}
-		if(midiInput) {
-			log("MIDI Input device detected " + midiInput.name + " " + midiInput.version);
-			midiInput.onmidimessage = (msg) => processMessage(msg);
-		} else {
-			log("no MIDI Input device detected");
-		}
-		midiOutput = midiAccess.outputs.values().next().value;
-		// quick hack
-		// ChromeOS returns (dummy) MIDI object as first midi device
-		//if(midiOutput && midiOutput.name.startsWith("Midi Through Port")) {
-		//	midiOutput = midiAccess.outputs.values().next().value;
-		//}
-		if(midiOutput) {
-			log("MIDI Output device detected " + midiInput.name + " " + midiInput.version);
-		} else {
-			log("no MIDI Output device detected");
-		}
-		console.log(midiInput, midiOutput);
-		// play Middle C loud				
-		//midiOutput.send([144, 60, 127]);
+		webMidi = midiAccess;
+		webMidi.onstatechange = newMidiDevice;
+		newMidiDevice();
 	})
 
 	function getNoteName(noteNumber) {
@@ -92,6 +70,56 @@
 	function log(msg) {
 		console.log(msg);
 		document.getElementById("message").innerHTML = document.getElementById("message").innerHTML + "<br/>" + msg;
+	}
+
+	function newMidiDevice() {
+		if(webMidi.outputs.size) {
+			webMidi.outputs.forEach(function(midiOutput) {
+				midiOutputs.push(midiOutput);
+				log("MIDI Output device detected " + midiOutput.name + " " + midiOutput.version);
+				// play Middle C loud				
+				//midiOutput.send([144, 60, 127]);*/
+			});
+		} else {
+			log("no MIDI Output device detected");
+		}
+		if(webMidi.inputs.size) {
+			webMidi.inputs.forEach(function(midiInput) {
+				midiInputs.push(midiInput);
+				log("MIDI Input device detected " + midiInput.name + " " + midiInput.version);
+				midiInput.onmidimessage = (msg) => processMessage(msg);
+			});
+		} else {
+			log("no MIDI Output device detected");
+		}
+		/*
+		midiInput = midiAccess.inputs.values().next().value;
+			// quick hack
+			// ChromeOS returns (dummy) MIDI object as first midi device
+			//if(midiInput && midiInput.name.startsWith("Midi Through Port")) {
+			//	console.log("discarding", midiInput);
+			//	midiInput = midiAccess.inputs.values().next().value;
+			//}
+			if(midiInput) {
+				log("MIDI Input device detected " + midiInput.name + " " + midiInput.version);
+				midiInput.onmidimessage = (msg) => processMessage(msg);
+			} else {
+				log("no MIDI Input device detected");
+			}
+			midiOutput = midiAccess.outputs.values().next().value;
+			// quick hack
+			// ChromeOS returns (dummy) MIDI object as first midi device
+			//if(midiOutput && midiOutput.name.startsWith("Midi Through Port")) {
+			//	midiOutput = midiAccess.outputs.values().next().value;
+			//}
+			if(midiOutput) {
+				log("MIDI Output device detected " + midiOutput.name + " " + midiOutput.version);
+			} else {
+				log("no MIDI Output device detected");
+			}
+			console.log(midiInput, midiOutput);
+			// play Middle C loud				
+			//midiOutput.send([144, 60, 127]);*/
 	}
 	</script>
 </body>
