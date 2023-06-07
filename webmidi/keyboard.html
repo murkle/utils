@@ -49,18 +49,23 @@
 	var midiOutput;
 	navigator.requestMIDIAccess().then((midiAccess) => {
 		midiInput = midiAccess.inputs.values().next().value;
+		// quick hack
+		// ChromeOS returns (dummy) MIDI object as first midi device
+		if(midiInput && midiInput.name.startsWith("Midi Through Port")) {
+			midiInput = midiAccess.inputs.values().next().value;
+		}
 		if(midiInput) {
 			log("MIDI Input device detected " + midiInput.name + " " + midiInput.version);
 			midiInput.onmidimessage = (msg) => processMessage(msg);
 		} else {
 			log("no MIDI Input device detected");
 		}
-		//  ChromeOS returns (dummy) MIDI object as first
-		//while (midiAccess.inputs.values().hasNext()) {
-		//	midiInput = midiAccess.inputs.values().next().value;
-		//	console.log(midiInput);
-		//}
 		midiOutput = midiAccess.outputs.values().next().value;
+		// quick hack
+		// ChromeOS returns (dummy) MIDI object as first midi device
+		if(midiOutput && midiOutput.name.startsWith("Midi Through Port")) {
+			midiOutput = midiAccess.outputs.values().next().value;
+		}
 		if(midiOutput) {
 			log("MIDI Output device detected " + midiInput.name + " " + midiInput.version);
 		} else {
