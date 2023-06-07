@@ -1,0 +1,93 @@
+<html>
+
+<head>
+</head>
+
+<body>
+	<div id="message"></div>
+	<script>
+	// also see https://www.onlinemusictools.com/webmiditest/ for nice simple demo
+	function processMessage(msg) {
+		data = msg.data;
+		var command = data[0];
+		switch (command) {
+			case 128: // note released (not returned by Alesis Q Mini)
+			case 144: // note pressed/released
+				if(data[2] == 0 || command == 128) {
+					log("note = " + getNoteName(data[1]) + " released");
+				} else {
+					// 60 = Middle C
+					log("note = " + getNoteName(data[1]) + " velocity = " + data[2]);
+				}
+				break;
+			case 176: // Alesis Q Mini
+				if(data[1] == 7) {
+					log("volume set to " + data[2] + "/127");
+				} else if(data[1] == 1) {
+					// "MOD" Modulation button returns higher and higher values the longer it's pressed
+					// then back to 0 when released
+					log("Modulation set to " + data[2] + "/127");
+				} else if(data[1] == 64) {
+					// "SUST" Sustain button - toggles on/off
+					log("Sustain " + (data[2] == 0 ? "off" : "on"));
+				} else {
+					log(msg.data);
+				}
+				break;
+			case 224: // Alesis Q Mini
+				// <PB button starts at 64 and returns lower and lower values down to 0
+				// PB> button starts at 64 and returns higher and higher values up to 127
+				// both return to 64 when released
+				log("Pitch bend set to " + data[2]);
+				break;
+			default:
+				log("Unknown command", msg.data);
+				break;
+		}
+	}
+	var midiInput;
+	var midiOutput;
+	navigator.requestMIDIAccess().then((midiAccess) => {
+		midiInput = midiAccess.inputs.values().next().value;
+		if(midiInput) {
+			log("MIDI Input device detected " + midiInput.name + " " + midiInput.version);
+			midiInput.onmidimessage = (msg) => processMessage(msg);
+		} else {
+			log("no MIDI Input device detected");
+		}
+		//  ChromeOS returns (dummy) MIDI object as first
+		//while (midiAccess.inputs.values().hasNext()) {
+		//	midiInput = midiAccess.inputs.values().next().value;
+		//	console.log(midiInput);
+		//}
+		midiOutput = midiAccess.outputs.values().next().value;
+		if(midiOutput) {
+			log("MIDI Output device detected " + midiInput.name + " " + midiInput.version);
+		} else {
+			log("no MIDI Output device detected");
+		}
+		console.log(midiInput, midiOutput);
+		// play Middle C loud				
+		//midiOutput.send([144, 60, 127]);
+	})
+
+	function getNoteName(noteNumber) {
+		if(noteNumber < 21) {
+			// below A0, no name
+			return "MIDI Note " + noteNumber;
+		}
+		var octave = Math.trunc(noteNumber / 12) - 1;
+		noteNumber -= 21;
+		var notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
+		var name = notes[noteNumber % 12];
+		return name + octave;
+	}
+
+	function log(msg) {
+		console.log(msg);
+		document.getElementById("message").innerHTML = document.getElementById("message").innerHTML + "<br/>" + msg;
+	}
+	</script>
+</body>
+
+</html>
