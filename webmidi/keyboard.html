@@ -51,7 +51,8 @@
 		midiInput = midiAccess.inputs.values().next().value;
 		// quick hack
 		// ChromeOS returns (dummy) MIDI object as first midi device
-		if(midiInput && midiInput.name.startsWith("Midi Through Port")) {
+		while(midiInput && midiInput.name.startsWith("Midi Through Port")) {
+			console.log("discarding", midiInput);
 			midiInput = midiAccess.inputs.values().next().value;
 		}
 		if(midiInput) {
