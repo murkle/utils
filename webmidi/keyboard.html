@@ -92,34 +92,6 @@
 		} else {
 			log("no MIDI Output device detected");
 		}
-		/*
-		midiInput = midiAccess.inputs.values().next().value;
-			// quick hack
-			// ChromeOS returns (dummy) MIDI object as first midi device
-			//if(midiInput && midiInput.name.startsWith("Midi Through Port")) {
-			//	console.log("discarding", midiInput);
-			//	midiInput = midiAccess.inputs.values().next().value;
-			//}
-			if(midiInput) {
-				log("MIDI Input device detected " + midiInput.name + " " + midiInput.version);
-				midiInput.onmidimessage = (msg) => processMessage(msg);
-			} else {
-				log("no MIDI Input device detected");
-			}
-			midiOutput = midiAccess.outputs.values().next().value;
-			// quick hack
-			// ChromeOS returns (dummy) MIDI object as first midi device
-			//if(midiOutput && midiOutput.name.startsWith("Midi Through Port")) {
-			//	midiOutput = midiAccess.outputs.values().next().value;
-			//}
-			if(midiOutput) {
-				log("MIDI Output device detected " + midiOutput.name + " " + midiOutput.version);
-			} else {
-				log("no MIDI Output device detected");
-			}
-			console.log(midiInput, midiOutput);
-			// play Middle C loud				
-			//midiOutput.send([144, 60, 127]);*/
 	}
 	</script>
 </body>
