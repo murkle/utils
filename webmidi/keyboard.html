@@ -51,10 +51,10 @@
 		midiInput = midiAccess.inputs.values().next().value;
 		// quick hack
 		// ChromeOS returns (dummy) MIDI object as first midi device
-		while(midiInput && midiInput.name.startsWith("Midi Through Port")) {
-			console.log("discarding", midiInput);
-			midiInput = midiAccess.inputs.values().next().value;
-		}
+		//if(midiInput && midiInput.name.startsWith("Midi Through Port")) {
+		//	console.log("discarding", midiInput);
+		//	midiInput = midiAccess.inputs.values().next().value;
+		//}
 		if(midiInput) {
 			log("MIDI Input device detected " + midiInput.name + " " + midiInput.version);
 			midiInput.onmidimessage = (msg) => processMessage(msg);
@@ -64,9 +64,9 @@
 		midiOutput = midiAccess.outputs.values().next().value;
 		// quick hack
 		// ChromeOS returns (dummy) MIDI object as first midi device
-		if(midiOutput && midiOutput.name.startsWith("Midi Through Port")) {
-			midiOutput = midiAccess.outputs.values().next().value;
-		}
+		//if(midiOutput && midiOutput.name.startsWith("Midi Through Port")) {
+		//	midiOutput = midiAccess.outputs.values().next().value;
+		//}
 		if(midiOutput) {
 			log("MIDI Output device detected " + midiInput.name + " " + midiInput.version);
 		} else {
