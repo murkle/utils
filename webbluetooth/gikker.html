@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+	<meta charset="utf-8">
+	<title>GiiKER API Tester</title>
+	<script src="gikker.js" charset="utf-8"></script>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.1/css/bulma.min.css">
+	<style>
+	body {
+		text-align: center;
+	}
+
+	button {
+		margin: 1em 0;
+	}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<button class="button is-primary is-large is-rounded">Connect!</button>
+		<textarea class="textarea is-primary" type="text" placeholder="Primary textarea"></textarea>
+	</div>
+	<script>
+	const button = document.querySelector('button');
+	const textarea = document.querySelector('textarea');
+	button.addEventListener('click', async () => {
+		button.classList.add('is-loading');
+		button.disabled = true;
+		const giiker = await GiiKER.connect();
+		button.classList.remove('is-loading');
+		button.textContent = 'Connected!';
+		giiker.on('move', (move) => {
+			console.log(move);
+			textarea.value += ` ${move.notation}`;
+		});
+		// Expose giiker object for testing on console
+		window.giiker = giiker;
+	});
+	</script>
+</body>
+
+</html>
