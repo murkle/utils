@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<title>Handy list of CSS font stacks for Windows & macOS browsers</title>
+</head>
+
+<body> Here's a handy list of CSS font stacks for Windows & macOS browsers. Adapted from <a href="https://coderwall.com/p/57imrw/common-fonts-for-windows-mac">coderwall.com/p/57imrw/common-fonts-for-windows-mac</a>
+	<br /> The first CSS stack on this list can just be reduced down to just Sans-Serif as Windows browsers will get Arial & macOS browsers get Helvetica. <br />
+	<b>Click on the sample text to edit!</b>
+
+		<p style="font-family: Lucida Sans Unicode, Lucida Grande, Helvetica, Roboto, Sans-Serif" contenteditable="true"> </p>
+		
+		<script>
+		
+		// Windows  Lucida Sans Unicode
+		// Android Let's try Roboto
+		// iOS Helvetica (needs to come after Lucida Sans Unicode as Windows also has Helvetica)
+		// macOS Lucida Grande
+		
+		var text = "0.12\u03053\u03054\u03055 A\u0305B\u0305a\u0305b\u0305";
+		const urlParams = new URLSearchParams(window.location.search);
+		text = urlParams.get('text') || text;
+		var fragment = document.createDocumentFragment();
+		// iterate through all <p> tags
+		Array.prototype.forEach.call(document.getElementsByTagName('p'), function(element) {
+			if(element.isContentEditable) {
+				element.innerHTML = text;
+			}
+		});
+		</script>
+</body>
+
+</html>
