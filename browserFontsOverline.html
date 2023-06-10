@@ -3,29 +3,23 @@
 
 <head>
 	<meta charset="UTF-8">
-	<title>Handy list of CSS font stacks for Windows & macOS browsers</title>
+	<title>Displaying recurring decimals in the browser</title>
 </head>
 
-<body> Want to display text with an overline in the browser? It's a but tricky as (a) font support for Unicode Character \u0305 Combining Overline is patchy and (b) good support is in different fonts on each platform <br />
-<p>Windows:  Lucida Sans Unicode</p>
+<body> Want to display text with an overline in the browser? It's a but tricky as font support for Unicode Character \u0305 Combining Overline is patchy. However Arial works well and is available by default in recent Android, Windows, macOS, iOS (not sure which versions)</p>
 <p>macOS: Lucida Grande</p>
 <p>Android: Arial (needs to come before Helvetica as Android also has that - not working)</p>
-<p>iOS: Helvetica (needs to come after Lucida Sans Unicode as Windows also has Helvetica)</p>
+<p>iOS: Arial (needs to come after Lucida Sans Unicode as Windows also has Helvetica)</p>
 
 <p>Here's a test with &lt;span style="text-decoration:overline"&gt;here the text has overline,&lt;/span&gt;
  0.1<span style="text-decoration:overline">234</span>
  
 <p>So here's the magic CSS code:</p>
-	<p style="font-family: Monospace"> &lt;p style="Lucida Sans Unicode, Lucida Grande, Arial, Helvetica, Sans-Serif"&gt; </p>
+	<p style="font-family: Monospace"> &lt;p style="Arial, Sans-Serif"&gt; </p>
 
 	<b>Click on the sample text to edit!</b>
 
-		<p style="font-family: Arial, Helvetica, Sans-Serif" contenteditable="true"> </p>
-		<p style="font-family: Helvetica, Sans-Serif" contenteditable="true"> </p>
-		<p style="font-family: Sans-Serif" contenteditable="true"> </p>
-		<p style="font-family: Helvetica" contenteditable="true"> </p>
-
-	<p style="font-family: Lucida Sans Unicode, Lucida Grande, Arial, Helvetica, Sans-Serif" contenteditable="true"> </p>
+	<p style="font-family: Arial, Sans-Serif" contenteditable="true"> </p>
 		
 		<script>
 		
