@@ -6,13 +6,11 @@
 	<title>Displaying recurring decimals in the browser</title>
 </head>
 
-<body> Want to display text with an overline in the browser? It's a but tricky as font support for Unicode Character \u0305 Combining Overline is patchy. However Arial works well and is available by default in recent Android, Windows, macOS, iOS (not sure which versions)</p>
-<p>macOS: Lucida Grande</p>
-<p>Android: Arial (needs to come before Helvetica as Android also has that - not working)</p>
-<p>iOS: Arial (needs to come after Lucida Sans Unicode as Windows also has Helvetica)</p>
+<body> Want to display text with an overline in the browser? It's a but tricky as font support for <a href="https://www.compart.com/en/unicode/U+0305">Unicode Character \u0305 Combining Overline</a> is patchy. However Arial works well and is available by default in recent Android, Windows, macOS, iOS (not sure which versions)</p>
+<p>However on Android the lines don't join up and I can't find a font where they do</p>
 
-<p>Here's a test with &lt;span style="text-decoration:overline"&gt;here the text has overline,&lt;/span&gt;
- 0.1<span style="text-decoration:overline">234</span>
+<p>Here's a test with &lt;span style="text-decoration:overline"&gt;<span style="text-decoration:overline">here the text has overline</span>&lt;/span&gt;
+ 
  
 <p>So here's the magic CSS code:</p>
 	<p style="font-family: Monospace"> &lt;p style="Arial, Sans-Serif"&gt; </p>
@@ -20,9 +18,6 @@
 	<b>Click on the sample text to edit!</b>
 
 	<p style="font-family: Arial, Sans-Serif" contenteditable="true"> </p>
-	<p style="font-family: Lucida Grande, Sans-Serif" contenteditable="true"> </p>
-	<p style="font-family: Lucida Sans Unicode, Sans-Serif" contenteditable="true"> </p>
-	<p style="font-family: Helvetica, Sans-Serif" contenteditable="true"> </p>
 		
 		<script>
 		
