@@ -6,21 +6,26 @@
 	<title>Handy list of CSS font stacks for Windows & macOS browsers</title>
 </head>
 
-<body> Here's a handy list of CSS font stacks for Windows & macOS browsers. Adapted from <a href="https://coderwall.com/p/57imrw/common-fonts-for-windows-mac">coderwall.com/p/57imrw/common-fonts-for-windows-mac</a>
-	<br /> The first CSS stack on this list can just be reduced down to just Sans-Serif as Windows browsers will get Arial & macOS browsers get Helvetica. <br />
+<body> Want to display text with an overline in the browser? It's a but tricky as (a) font support for Unicode Character \u0305 Combining Overline is patchy and (b) good support is in different fonts on each platform <br />
+<p>Windows:  Lucida Sans Unicode</p>
+<p>macOS: Lucida Grande</p>
+<p>Android: Arial (needs to come before Helvetica as Android also has that - not working)</p>
+<p>iOS: Helvetica (needs to come after Lucida Sans Unicode as Windows also has Helvetica)</p>
+
+<p>Here's a test with &lt;span style="text-decoration:overline"&gt;here the text has overline,&lt;/span&gt;
+ 0.1<span style="text-decoration:overline">234</span>
+ 
+<p>So here's the magic CSS code:</p>
+	<p style="font-family: Monospace"> &lt;p style="Lucida Sans Unicode, Lucida Grande, Arial, Helvetica, Sans-Serif"&gt; </p>
+
 	<b>Click on the sample text to edit!</b>
 
-		<p style="font-family: Arial, Helvetica, Sans-Serif" contenteditable="true"> </p>
-		<p style="font-family: Lucida Sans Unicode, Lucida Grande, Arial, Helvetica, Sans-Serif" contenteditable="true"> </p>
+	<p style="font-family: Lucida Sans Unicode, Lucida Grande, Arial, Helvetica, Sans-Serif" contenteditable="true"> </p>
 		
 		<script>
 		
-		// Windows  Lucida Sans Unicode
-		// Android Arial (needs to come before Helvetica as Android also has that - not working)
-		// iOS Helvetica (needs to come after Lucida Sans Unicode as Windows also has Helvetica)
-		// macOS Lucida Grande
 		
-		var text = "0.12\u03053\u03054\u03055 A\u0305B\u0305a\u0305b\u0305";
+		var text = "Unicode 0.12\u03053\u03054\u0305 A\u0305B\u0305a\u0305b\u0305  HTML overline: 0.1<span style='text-decoration:overline'>234</span>";
 		const urlParams = new URLSearchParams(window.location.search);
 		text = urlParams.get('text') || text;
 		var fragment = document.createDocumentFragment();
