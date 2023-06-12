@@ -1,0 +1,188 @@
+<html>
+
+<head>
+</head>
+
+<body>
+	<div id="output"></div>
+	<script>
+	function log(msg) {
+		console.log(msg);
+		document.getElementById("output").innerHTML += "<br/><br/>" + msg;
+	}
+	const queryString = window.location.search;
+	const urlParams = new URLSearchParams(queryString);
+	// same parameters as https://www.glowmarkt.com/login
+	var username;
+	var password;
+	username = urlParams.get("u");
+	password = urlParams.get("p");
+	if(!username) {
+		username = prompt("Bright username");
+	}
+	if(!password) {
+		password = prompt("Bright password");
+	}
+	const urlAuth = 'https://api.glowmarkt.com/api/v0-1/auth';
+	const urlEntity = 'https://api.glowmarkt.com/api/v0-1/virtualentity';
+	const request = new XMLHttpRequest();
+	const brightApplicationId = "b0f1b774-a586-4f72-9edd-27ead8aa7a8d";
+	// POST to https://api.glowmarkt.com/api/v0-1/auth to get JWT token
+	// curl -X POST -H "Content-Type: application/json" -H "applicationId: b0f1b774-a586-4f72-9edd-27ead8aa7a8d" -d '{ "username": "your username", "password":"your password"}' "https://api.glowmarkt.com/api/v0-1/auth"
+	function getToken() {
+		request.open('POST', urlAuth);
+		request.setRequestHeader('Content-Type', 'application/json');
+		request.setRequestHeader('applicationId', brightApplicationId);
+		const data = {
+			"username": username,
+			"password": password
+		};
+		request.onreadystatechange = function() {
+			if(request.readyState === XMLHttpRequest.DONE) {
+				if(request.status === 200) {
+					const response = JSON.parse(request.responseText);
+					//console.log('Response:', response);
+					tokenJWT = response.token;
+					log("JWT token = " + tokenJWT + " valid for c. 7 days");
+					getVirtualEntities(tokenJWT);
+				} else {
+					console.error('Error:', request.status);
+					// Handle the error here
+				}
+			}
+		};
+		request.send(JSON.stringify(data));
+	}
+	// curl -X GET -H "Content-Type: application/json" -H "token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbkhhc2giOiJlOTRlYzE2MzgyMzE0YzdjMDdlZDliZmEwZGFiNDhhZTNhOTA0NDhlYjNjZTU0MzI4YWEwOTMwNTEzMjI4ZjY2ZjAwMWNiODRiYTIyZDczMjliZmZlMDlmZjlhZDFkZiIsImlhdCI6MTUzNjEzNDkxMCwiZXhwIjoxNTM2NzM5NzEwfQ.D1lTvyfo5ap69tT6MK9jceEFNLp-xmMAz6WGohIuUR4" -H "applicationId: b0f1b774-a586-4f72-9edd-27ead8aa7a8d" “https://api.glowmarkt.com/api/v0-1/virtualentity"
+	function getVirtualEntities(token) {
+		request.open('GET', urlEntity);
+		request.setRequestHeader('Content-Type', 'application/json');
+		request.setRequestHeader('token', token);
+		request.setRequestHeader('applicationId', brightApplicationId);
+		request.onreadystatechange = function() {
+			if(request.readyState === XMLHttpRequest.DONE) {
+				if(request.status === 200) {
+					const response = JSON.parse(request.responseText);
+					//console.log('Response:', response);
+					//applicationId = response[0].applicationId;
+					veId = response[0].veId;
+					log("veId = " + veId);
+					getResources(token, veId);
+				} else {
+					console.error('Error:', request.status);
+					// Handle the error here
+				}
+			}
+		};
+		request.send();
+	}
+	// curl -X GET -H "Content-Type: application/json" -H "token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbkhhc2giOiJlOTRlYzE2MzgyMzE0YzdjMDdlZDliZmEwZGFiNDhhZTNhOTA0NDhlYjNjZTU0MzI4YWEwOTMwNTEzMjI4ZjY2ZjAwMWNiODRiYTIyZDczMjliZmZlMDlmZjlhZDFkZiIsImlhdCI6MTUzNjEzNDkxMCwiZXhwIjoxNTM2NzM5NzEwfQ.D1lTvyfo5ap69tT6MK9jceEFNLp-xmMAz6WGohIuUR4" -H "applicationId: b0f1b774-a586-4f72-9edd-27ead8aa7a8d" "https://api.glowmarkt.com/api/v0-1/virtualentity/dc9069a7-7695-43fd-8f27-16b1c94213da/resources"
+	function getResources(token, veId) {
+		const urlResources = 'https://api.glowmarkt.com/api/v0-1/virtualentity/' + veId + '/resources';
+		const request = new XMLHttpRequest();
+		request.open('GET', urlResources);
+		request.setRequestHeader('Content-Type', 'application/json');
+		request.setRequestHeader('token', token);
+		request.setRequestHeader('applicationId', brightApplicationId);
+		request.onreadystatechange = function() {
+			if(request.readyState === XMLHttpRequest.DONE) {
+				if(request.status === 200) {
+					const response = JSON.parse(request.responseText);
+					console.log('Response:', response);
+					var resources = response.resources;
+					checkResources(token, resources);
+				} else {
+					console.error('Error:', request.status);
+					// Handle the error here
+				}
+			}
+		};
+		request.send();
+	}
+
+	function checkResources(token, resources) {
+		for(var i = 0; i < resources.length; i++) {
+			var resource = resources[i];
+			resourceId = resource.resourceId;
+			getResourceReadings(token, resourceId);
+			getCurrentReading(token, resourceId);
+		}
+	}
+	// curl -X GET -H "Content-Type: application/json" -H "token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbkhhc2giOiJlOTRlYzE2MzgyMzE0YzdjMDdlZDliZmEwZGFiNDhhZTNhOTA0NDhlYjNjZTU0MzI4YWEwOTMwNTEzMjI4ZjY2ZjAwMWNiODRiYTIyZDczMjliZmZlMDlmZjlhZDFkZiIsImlhdCI6MTUzNjEzNDkxMCwiZXhwIjoxNTM2NzM5NzEwfQ.D1lTvyfo5ap69tT6MK9jceEFNLp-xmMAz6WGohIuUR4" -H "applicationId: b0f1b774-a586-4f72-9edd-27ead8aa7a8d" "https://api.glowmarkt.com/api/v0-1/resource/73f70bcd-3743-4009-a2c4-e98cc959c030/readings?from=2018-04-10T00:00:00&to=2018-04-23T23:59:59&period=P1D&offset=-60&function=sum"
+	function getResourceReadings(token, resourceId) {
+		//var from = "2023-06-10T00:00:00";
+		//var to = "2023-06-11T00:00:00";
+		// Get today's date
+		var today = new Date();
+		// Subtract one day from today's date
+		var yesterday = new Date(today);
+		yesterday.setDate(today.getDate() - 1);
+		var to = yesterday.toISOString().split('T')[0] + 'T00:00:00';
+		// Subtract two days from today's date
+		var dayBeforeYesterday = new Date(today);
+		dayBeforeYesterday.setDate(today.getDate() - 2);
+		var from = dayBeforeYesterday.toISOString().split('T')[0] + 'T00:00:00';
+		// PT1M (minute level, only elec)
+		// PT30M (30 minute level)
+		// PT1H (hour level)
+		// P1D (day level)
+		// P1W (week level, starting Monday)
+		// P1M (month level)
+		// P1Y (year level)
+		const period = "P1D";
+		// normally 0 (GMT) or -60 (BST)
+		const daylightSavingsOffset = "-60";
+		const url = 'https://api.glowmarkt.com/api/v0-1/resource/' + resourceId + '/readings?from=' + from + '&to=' + to + '&period=' + period + '&offset=' + daylightSavingsOffset + '&function=sum';
+		const request = new XMLHttpRequest();
+		request.open('GET', url);
+		request.setRequestHeader('Content-Type', 'application/json');
+		request.setRequestHeader('token', token);
+		request.setRequestHeader('applicationId', brightApplicationId);
+		request.onreadystatechange = function() {
+			if(request.readyState === XMLHttpRequest.DONE) {
+				if(request.status === 200) {
+					const response = JSON.parse(request.responseText);
+					//console.log('Response:', response);
+					var classifier = response.classifier;
+					var name = response.name;
+					var units = response.units;
+					var from = response.query.from;
+					var to = response.query.to;
+					var data = response.data;
+					log("yesterday, your " + name + " was " + data + " " + units);
+				} else {
+					console.error('Error:', request.status);
+					// Handle the error here
+				}
+			}
+		};
+		request.send();
+	}
+	// curl -X GET -H "Content-Type: application/json" -H "token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbkhhc2giOiJlOTRlYzE2MzgyMzE0YzdjMDdlZDliZmEwZGFiNDhhZTNhOTA0NDhlYjNjZTU0MzI4YWEwOTMwNTEzMjI4ZjY2ZjAwMWNiODRiYTIyZDczMjliZmZlMDlmZjlhZDFkZiIsImlhdCI6MTUzNjEzNDkxMCwiZXhwIjoxNTM2NzM5NzEwfQ.D1lTvyfo5ap69tT6MK9jceEFNLp-xmMAz6WGohIuUR4" -H "applicationId: b0f1b774-a586-4f72-9edd-27ead8aa7a8d""https://api.glowmarkt.com/api/v0-1/resource/73f70bcd-3743-4009-a2c4-e98cc959c030/current"
+	function getCurrentReading(token, resourceId) {
+		request.open('GET', 'https://api.glowmarkt.com/api/v0-1/resource/' + resourceId + '/current');
+		request.setRequestHeader('Content-Type', 'application/json');
+		request.setRequestHeader('token', token);
+		request.setRequestHeader('applicationId', brightApplicationId);
+		request.onreadystatechange = function() {
+			if(request.readyState === 4 && request.status === 200) {
+				var response = JSON.parse(request.responseText);
+				// Handle the response data here
+				//console.log(response);
+				var classifier = response.classifier;
+				var name = response.name;
+				var units = response.units;
+				// first number is timestamp
+				var data = response.data;
+				log("current reading for " + name + " is " + data);
+			} else {
+				console.error('Error:', request.status);
+			}
+		};
+		request.send();
+	}
+	getToken();
+	</script>
+</body>
+
+</html>
