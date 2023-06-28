@@ -1,0 +1,69 @@
+<html>
+
+<head>
+</head>
+
+<body>
+	<button onclick="init()">Connect to BlinkStick</button>
+	<button onclick="setColor(0, randomIntFromInterval(0,64), randomIntFromInterval(0,64), randomIntFromInterval(0,64))">set LED 0 to random</button>
+	<button onclick="setColor(1, 0x22, 0x22, 0x00)">set LED 1 to yellow</button>
+	<button onclick="setColor(2, 0002, 0x22, 0x00)">set LED 2 to green</button>
+	<button onclick="setAllColors(0x00, 0x22, 0x22)">set all LEDs to blue</button>
+	<button onclick="receiveFeatureReport()">get LED colors</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	<script>
+	// https://stackoverflow.com/questions/4959975/generate-random-number-between-two-numbers-in-javascript
+	function randomIntFromInterval(min, max) { // min and max included 
+		return Math.floor(Math.random() * (max - min + 1) + min)
+	}
+	// https://github.com/subzey/blinkstick-webhid
+	let deviceFilter = {
+		vendorId: 0x20a0,
+		productId: 0x41e5
+	};
+	let requestParams = {
+		filters: [deviceFilter]
+	};
+
+	function handleDisconnectedDevice(e) {
+		console.log("Device disconnected: " + e.device.productName);
+		document.getElementById("message").innerHTML = "Device disconnected";
+	}
+	navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+	function setColor(index, red, green, blue) {
+		device.sendFeatureReport(5, Uint8Array.of(0, index, red, green, blue));
+	}
+
+	function setAllColors(red, green, blue) {
+		// sets 16 pixels (if device has fewer, just uses the first eg 8 colours
+		device.sendFeatureReport(7, Uint8Array.of(0, green, red, blue, // note order GRB not RGB
+			green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, green, red, blue, ));
+	}
+
+	function init() {
+		navigator.hid.requestDevice(requestParams).then((devices) => {
+			if(devices.length == 0) return;
+			devices[0].open().then(() => {
+				device = devices[0];
+				console.log("Opened device: " + device.productName, device);
+				document.getElementById("device").innerHTML = device.productName;
+			});
+		});
+	}
+
+	function receiveFeatureReport() {
+		device.receiveFeatureReport(6).then(dataView => {
+			var buffer = dataView.buffer;
+			var array = new Uint8Array(buffer);
+			console.log("no of pixels = " + (array.length - 2) / 3);
+			for(var i = 2; i < array.length; i += 3) {
+				// // note order GRB not RGB
+				console.log("led RGB = " + array[i + 1] + "," + array[i] + "," + array[i + 2]);
+			}
+		});
+	}
+	</script>
+
+</html>
