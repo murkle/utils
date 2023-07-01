@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Raspberry Pico Web Bluetooth Serial Monitor https://github.com/murkle/Pico_WebBluetooth_Read_Temperature/blob/main/index.html</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      background-color: #45a049;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    .log-entry {
+      font-size: 20px;
+    }
+
+    .temperature-box {
+      display: inline-block;
+      padding: 10px;
+      background-color: #f1f1f1;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .temperature {
+      font-size: 24px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Pico Web Bluetooth Read Temperature</h2>
+    <button id="connectButton" class="button" onclick="connectToDevice()">Connect</button>
+    <button id="disconnectButton" class="button" onclick="disconnectFromDevice()" disabled>Disconnect</button>
+    <br><br>
+    <div id="temperatureContainer"></div>
+  </div>
+
+  <script>
+    let device;
+    let logElement;
+    let writeCharacteristic;
+    let readCharacteristic;
+
+    function log(message) {
+      const logEntry = document.createElement('div');
+      logEntry.classList.add('log-entry');
+      logEntry.innerText = message;
+
+      logElement.appendChild(logEntry);
+    }
+
+    async function connectToDevice() {
+      try {
+        logElement = document.getElementById('temperatureContainer');
+        log('Requesting Bluetooth Device...');
+
+        if (device && device.gatt.connected) {
+          log('Already connected to ' + device.name);
+          return;
+        }
+		
+		let filters = [];
+		// name is eg "Pico 28:CD:C1:0B:EA:62"
+		filters.push({
+			namePrefix: "Pico "
+		});
+		let options = {
+			"optionalServices": ['0000181a-0000-1000-8000-00805f9b34fb']
+		};
+		options.filters = filters;
+
+        device = await navigator.bluetooth.requestDevice(options);
+
+        log('Connecting to GATT Server...');
+        const server = await device.gatt.connect();
+
+        
+        log('Getting Serial Service...');
+        const service = await server.getPrimaryService('0000181a-0000-1000-8000-00805f9b34fb');
+
+
+        log('Getting Serial Port Read Characteristic...');
+        readCharacteristic = await service.getCharacteristic('00002a6e-0000-1000-8000-00805f9b34fb');
+
+        log('Enabling notifications...');
+        await readCharacteristic.startNotifications();
+        readCharacteristic.addEventListener('characteristicvaluechanged', handleData);
+        
+
+        device.ongattserverdisconnected = handleDisconnect; // Assigning the disconnect handler
+
+        log('Connected to ' + device.name);
+
+        document.getElementById('connectButton').disabled = true;
+        document.getElementById('disconnectButton').disabled = false;
+      } catch (error) {
+        log('Error: ' + error);
+      }
+    }
+
+    function handleDisconnect() {
+      log('Connection lost. Device disconnected.');
+      document.getElementById('connectButton').disabled = false;
+      document.getElementById('disconnectButton').disabled = true;
+      alert('Connection lost. Device disconnected.');
+    }
+
+    function disconnectFromDevice() {
+      if (device && device.gatt.connected) {
+        device.gatt.disconnect();
+      }
+    }
+
+    function handleData(event) {
+      const jsonBytes = new Uint8Array(event.target.value.buffer);
+	  
+	  const jsonString = String.fromCharCode(...jsonBytes);
+	  
+	  // eg {"device":"Pico W", "temperatureC":35.00288}
+	  const json = JSON.parse(jsonString);
+	  
+	  console.log("from device", json);
+	  
+      const temperature = json.temperatureC;
+
+      const temperatureBox = document.createElement('div');
+      temperatureBox.classList.add('temperature-box');
+
+      const temperatureValue = document.createElement('span');
+      temperatureValue.classList.add('temperature');
+      temperatureValue.innerText = temperature.toFixed(2) + ' °C';
+
+      temperatureBox.appendChild(temperatureValue);
+
+      logElement.innerHTML = '';
+      logElement.appendChild(temperatureBox);
+    }
+  </script>
+</body>
+</html>
