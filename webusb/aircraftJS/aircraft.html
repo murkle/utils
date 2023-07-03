@@ -1,0 +1,98 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="Live airplanes tracker">
+    <meta property="og:description" content="Live airplanes tracker using Web USB, RTL-SDR, and JavaScript.">
+    <meta property="og:image"
+        content="https://res.cloudinary.com/devdevcharlie/image/upload/v1661281509/Screen_Shot_2022-08-23_at_12.03.55_PM_k9demp.png">
+    <meta property="og:url" content="">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Aircraft radar system in JavaScript</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <section class="intro">
+        <section>
+            <h1>✈️ LIVE AIRPLANES TRACKER 📡</h1>
+            <button>Connect to antenna</button>
+        </section>
+    </section>
+	
+	    <div id="map" style="height:100%;" hidden="hidden" ></div>
+
+
+    <script src="rtlsdr.js"></script>
+    <script src="cpr.js"></script>
+    <script src="aircraft.js"></script>
+    <script src="index.js" type="module"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>
+    <script src="os-transform.js"></script>
+	<script>
+	var request = new XMLHttpRequest();
+request.onload = function() {
+    var arrayBuffer = request.response;
+    proj4.nadgrid('OSTN15_NTv2_OSGBtoETRS', arrayBuffer);
+    proj4.defs('EPSG:27700', '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs +nadgrids=OSTN15_NTv2_OSGBtoETRS');
+    
+};
+request.open('GET', 'OSTN15_NTv2_OSGBtoETRS.gsb');
+request.responseType = 'arraybuffer';
+request.send();
+</script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&callback=initMap&v=weekly"
+      defer
+    ></script>
+	
+	
+	<script>
+	/**
+ * @license
+ * Copyright 2019 Google LLC. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+// In this example, we center the map, and add a marker, using a LatLng object
+// literal instead of a google.maps.LatLng object. LatLng object literals are
+// a convenient way to add a LatLng coordinate and, in most cases, can be used
+// in place of a google.maps.LatLng object.
+let map;
+
+
+function initMap() {
+  const mapOptions = {
+    zoom: 8,
+    center: { lat: 52.583, lng: -1.811 },
+  };
+
+  map = new google.maps.Map(document.getElementById("map"), mapOptions);
+/*
+  const marker = new google.maps.Marker({
+    // The below line is equivalent to writing:
+    // position: new google.maps.LatLng(-34.397, 150.644)
+    position: { lat: 52.583, lng: -1.811 },
+    map: map,
+  });
+  // You can use a LatLng literal in place of a google.maps.LatLng object when
+  // creating the Marker object. Once the Marker object is instantiated, its
+  // position will be available as a google.maps.LatLng object. In this case,
+  // we retrieve the marker's position using the
+  // google.maps.LatLng.getPosition() method.
+  const infowindow = new google.maps.InfoWindow({
+    content: "<p>Marker Location:" + marker.getPosition() + "</p>",
+  });
+
+  google.maps.event.addListener(marker, "click", () => {
+    infowindow.open(map, marker);
+  });*/
+}
+
+window.initMap = initMap;
+</script>
+	
+</body>
+
+</html>
