@@ -12,4 +12,8 @@ On Windows you need to use [zadig to install a driver](https://www.rtl-sdr.com/t
 
 [murkle.github.io/utils/webusb/aircraftJS/aircraft.html](https://murkle.github.io/utils/webusb/aircraftJS/aircraft.html)
 
+## More Info
+
+See [Charlie Gerard's Blogpost](https://charliegerard.dev/blog/aircraft-radar-system-rtl-sdr-web-usb/) for more details and links to the projects used
+
 
