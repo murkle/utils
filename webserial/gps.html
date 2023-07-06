@@ -1,0 +1,148 @@
+<html>
+<head>
+<script src="nmea.js"></script>
+</head>
+<body>
+
+<button onclick="openGPSPort()">Connect to GPS with WebSerial</Button>
+<button onclick="reader.releaseLock();gpsPort.close();">Stop</Button>
+<div id = "latitude">Latitude: waiting...</div>
+<div id = "longitude">Longitude: waiting...</div>
+<div id = "utc">Time: waiting...</div>
+
+<script>
+// https://github.com/AndrewPlayer3/WebSerialGPS
+var gpsPort;
+var needConcat = false;
+const decoder = new TextDecoder('UTF-8');
+var data_string = "";
+var reader;
+
+/* Request access to the GPS's port, and open it so it can be read. */
+async function openGPSPort() {
+    try {
+        gpsPort = await navigator.serial.requestPort({
+            filters:
+            [{
+                    usbVendorId: 0x1546, // GPS USB Vendor ID, can be found by using lsusb
+                }, // You may need to add your GPS's vid here ❗
+            ],
+        })
+            console.log(
+                'Selected Port: ', gpsPort.getInfo())
+            await gpsPort.open({
+                baudRate: 9600,
+                dataBits: 8,
+                stopBits: 1,
+                parity: 'none',
+                flowControl: 'hardware'
+            })
+            console.log(
+                'The selected port has been opened.');
+        readUntilClosed();
+        return true
+    } catch (error) {
+        console.log(
+            'Error Opening Port: ', error.message)
+        return false
+    }
+}
+
+/* Keep reading and displaying the GPS serial data until user clicks stop. */
+async function readUntilClosed() {
+    while (gpsPort.readable) {
+        reader = gpsPort.readable.getReader()
+            try {
+                while (true) {
+                    const {
+                        value,
+                        done
+                    } = await reader.read()
+
+                        if (done) // "done" is when the user clicks stop,
+                            break //  not necessarily when the reader is done.
+
+                            let temp_string = needConcat
+                                 ? data_string + decoder.decode(value)
+                                 : decoder.decode(value)
+                                data_arr = temp_string.split('\r\n')
+
+                                if (!temp_string.endsWith('\r\n')) // Reading is asyncronous, so there is no guarentee of
+                                { // position in the data stream, and there is no readline().
+                                    needConcat = true // So, we check for no line end \r\n and add it to the next
+                                        data_string += data_arr.pop() // message until a line end is reached.
+                                } else {
+                                    needConcat = false
+                                        data_string = ''
+                                }
+
+                                for (let j = 0; j < data_arr.length; j++) {
+                                    var decodedMessage = parseNMEAMessage(data_arr[j]);
+                                    console.log(decodedMessage ? parseNMEAMessage(data_arr[j]) : data_arr[j]);
+
+                                    if (decodedMessage && decodedMessage.latitude) {
+                                        document.getElementById("latitude").innerHTML = "Latitude: " + decodedMessage.latitude.toFixed(6) + decodedMessage.latDirection;
+                                    }
+                                    if (decodedMessage && decodedMessage.longitude) {
+                                        document.getElementById("longitude").innerHTML = "Latitude: " + decodedMessage.longitude.toFixed(6) + decodedMessage.lonDirection;
+                                    }
+                                    if (decodedMessage && decodedMessage.utc) {
+                                        document.getElementById("utc").innerHTML = "UTC: " + decodedMessage.utc;
+                                    }
+                                }
+                                data_arr = []
+                }
+            } catch (error) {
+                console.log(
+                    'Error in Reader Loop: ', error.message)
+            } finally {
+                reader.releaseLock()
+            }
+    }
+    await gpsPort.close()
+}
+
+/* Parse an NMEA GPS Sentence to get a more displayable format. */
+function parseNMEAMessage(data) {
+    // I get some messages starting $$GPGLL and $$GPGSV rather than $GPGLL and $GPGSV
+    if (data.startsWith("$$")) {
+        data = data.substring(1);
+    }
+
+    try {
+        let message
+        switch (data.substring(0, 6)) {
+        case '$GPGGA':
+            message = new GPGGA(data)
+
+                break
+            case '$GPRMC':
+                message = new GPRMC(data)
+                break
+            case '$GPGSA':
+                message = new GPGSA(data)
+                break
+            case '$GPGLL':
+                message = new GPGLL(data)
+                break
+            case '$GPVTG':
+                message = new GPVTG(data)
+                break
+            default:
+                // eg '$GPGSV' https://docs.novatel.com/OEM7/Content/Logs/GPGSV.htm
+                message = null
+                break
+        }
+        return message
+    } catch (error) {
+        console.log(
+            "Error Processing GPRMC Sentence: " + error.message)
+        return null
+    }
+}
+</script>
+
+
+
+</body>
+</html>
