@@ -16,6 +16,7 @@
 	
 	<script>
 
+	var namePrefix = "//code.Node";
 
 	const GCMD_CODENODE_CMD = 0x37;
 	const CODENODE_CMD_SET_LED = 0X02;
@@ -40,7 +41,12 @@
 	    const SEND_ACK_CHAR_ID = 5
 
 	    const SERVICE_UUID = "4a5c000" + SENSOR_SERVICE_ID + "-000" + "0" + "-0000-0000-5c1e741f1c00";
-	const CHARACTERISTIC_TX = "4a5c000" + SENSOR_SERVICE_ID + "-000" + SEND_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
+	//const CHARACTERISTIC_TX = "4a5c000" + SENSOR_SERVICE_ID + "-000" + SEND_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
+
+	function CHARACTERISTIC_TX(service_id) {
+	    return "4a5c000" + service_id + "-000" + SEND_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
+	}
+
 	const CHARACTERISTIC_RX = "4a5c000" + SENSOR_SERVICE_ID + "-000" + RECV_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
 
 	function CHARACTERISTIC_ACK(sensorId) {
@@ -77,7 +83,7 @@
 	    }).then(service => {
 	        console.log("service", service);
 	        services[device.name] = service;
-	        return service.getCharacteristic(CHARACTERISTIC_TX);
+	        return service.getCharacteristic(CHARACTERISTIC_TX(SENSOR_SERVICE_ID));
 	    }).then(characteristic => {
 	        console.log("characteristic", characteristic);
 	        characteristics[device.name] = characteristic;
@@ -111,7 +117,7 @@
 	    let filters = [];
 	    // name is eg //code.Node 123-456>G0
 	    filters.push({
-	        namePrefix: "//code.Node"
+	        "namePrefix": namePrefix
 	    });
 	    let options = {
 	        "optionalServices": [SERVICE_UUID]
@@ -132,19 +138,20 @@
 	// check if any dice already have user permission on the page
 	// allows devices to work after page refresh
 	// https://googlechrome.github.io/samples/web-bluetooth/get-devices.html
+	/*
 	navigator.bluetooth.getDevices().then(devices => {
-	    console.log('> Found ' + devices.length + ' Bluetooth devices:');
-	    for (const device of devices) {
-	        console.log(device.name);
-	        if (device.name.startsWith("GoCube")) {
-	            addDevice(device);
-	        }
-	    }
-	})
+	console.log('> Found ' + devices.length + ' Bluetooth devices:');
+	for (const device of devices) {
+	console.log(device.name);
+	if (device.name.startsWith(namePrefix)) {
+	addDevice(device);
+	}
+	}
+	})*/
 
 	function sendCommand(message) {
-	    service = services[names[0]];
-	    service.getCharacteristic(CHARACTERISTIC_TX).then(characteristic => {
+	    var service = services[names[0]];
+	    service.getCharacteristic(CHARACTERISTIC_TX(SENSOR_SERVICE_ID)).then(characteristic => {
 	        console.log("sending message ", message);
 	        characteristic.writeValue(new Uint8Array(message)).then(message => {
 
@@ -159,7 +166,7 @@
 	    // service_id = sensor_id + 1
 	    //                    command = [ data[0] ]
 	    //                    self._send_ack(service_id, command)
-	    service = services[names[0]];
+	    var service = services[names[0]];
 	    service.getCharacteristic(CHARACTERISTIC_ACK(0)).then(characteristic => {
 	        console.log("sending message ", message);
 	        characteristic.writeValue(new Uint8Array(message)).then(message => {
@@ -350,6 +357,54 @@
 	    var cmd = [GCMD_CONTROL_NODE_CMD, CTRLNODE_CMD_DETECT_DEVICES];
 	    sendCommand(cmd);
 	    // TODO: how do we get the result back?
+
+	}
+	/*
+	<Interface ID="1056" NameTag="WirelessCodeNode" AdvertisingName="//code.Node" HasSensorDisplayOrder="1" DiscoveryImage="Icon1056.png">
+	<Channel ID="0" NameTag="TempLightSound" SensorID="2066" Type="Pasport" SensorDisplayOrder="0"/>
+	<Channel ID="1" NameTag="Compass" SensorID="2067" Type="Pasport" SensorDisplayOrder="1"/>
+	<Channel ID="2" NameTag="Acceleration" SensorID="2068" Type="Pasport" SensorDisplayOrder="2"/>
+	<Channel ID="3" NameTag="Buttons" SensorID="2069" Type="Pasport" SensorDisplayOrder="3"/>
+	<Channel ID="4" NameTag="RedOutput" Type="Output" OrdinalPos="1" OutputType="13"/>
+	<Channel ID="5" NameTag="GreenOutput" Type="Output" OrdinalPos="2" OutputType="13"/>
+	<Channel ID="6" NameTag="BlueOutput" Type="Output" OrdinalPos="3" OutputType="13"/>
+	<Channel ID="7" NameTag="CodeNodeSpeaker" Type="Output" OutputType="14"/>
+	</Interface>
+
+	<Sensor ID="2066" Tag="CodeNodeTempLightSound" DefaultRate="20Hz" IconID="136" MaxRate="100Hz" Model="PS-3231">
+	<Measurement ID="0" NameTag="RawTemperature" Type="RawDigital" DataSize="2" TwosComp="1" Internal="1"/>
+	<Measurement ID="1" NameTag="RawLight" UnitType="Unitless" Type="RawDigital" DataSize="2" Internal="1"/>
+	<Measurement ID="2" NameTag="RawSoundLevel" UnitType="Unitless" Type="RawDigital" DataSize="2" Internal="1"/>
+	<Measurement ID="3" NameTag="Temperature" UnitType="DegC" Equation="[0]*0.01" Accuracy="0.5" Maximum="135" MeasType="Temperature" Minimum="-35" TypicalMin="15" TypicalMax="30" Precision="1" ShortNameTag="Temp" SymbolTag="T" Visible="1"/>
+	<Measurement ID="4" NameTag="Brightness" UnitType="percent" Equation="sqrt([1])*0.3906" MeasType="Brightness" Minimum="0" Maximum="100" TypicalMin="0" TypicalMax="20" Visible="1" ShortNameTag="brightness" SymbolTag="brns" IsDefaultMeas="1"/>
+	<Measurement ID="5" NameTag="Loudness" UnitType="percent" Equation="[2]*0.001526" Accuracy="0" Maximum="100" MeasType="Loudness" Minimum="0" TypicalMin="0" TypicalMax="50" Precision="1" ShortNameTag="loudness" SymbolTag="ldns" Visible="1"/>
+	</Sensor>
+
+	 */
+
+	// TODO
+	function getSensorMeasurement() {
+	    //       <Measurement ID="5" Tag="Temperature" UnitGroup="Temperature"/>
+
+	    var sensor_name = "Temperature";
+	    var sensor_id = 3; //measurement_sensor_ids[measurement]
+	    var service_id = sensor_id + 1
+	        var packet_size = 2; //sensor['total_data_size']
+
+	    var one_shot_cmd = [GCMD_READ_ONE_SAMPLE, packet_size];
+
+	    //uuid = self._set_uuid(service_id, self.SEND_CMD_CHAR_ID)
+	    var uuid = CHARACTERISTIC_TX(service_id);
+
+	    var service = services[names[0]];
+	    service.getCharacteristic(uuid).then(characteristic => {
+	        console.log("sending message ", one_shot_cmd);
+	        characteristic.writeValue(new Uint8Array(one_shot_cmd)).then(message => {
+
+	            console.log("message", message);
+
+	        });
+	    });
 
 	}
 	
