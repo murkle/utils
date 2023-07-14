@@ -1,0 +1,127 @@
+<html>
+
+<head>
+</head>
+
+<body>
+	<button onclick="connect()">Connect to Triones smart bulb</button>
+	<button onclick="on()">Turn light on</button>
+	<button onclick="off()">Turn light off</button>
+	<button onclick="setIntensity(128)">Half intensity</button>
+	<button onclick="setIntensity(255)">Full intensity</button>
+	<button onclick="setMode(0x2d, 0x10)">Mode 0x2D Red, Green cross fade</button>
+	
+	<script>
+	
+	// protocol from https://github.com/madhead/saberlight/blob/master/protocols/Triones/protocol.md
+	// buy from https://www.aliexpress.com/item/32659685459.html
+
+	var namePrefix = "Triones";
+
+	const SERVICE_UUID = 0xffd5;
+	const CHARACTERISTIC_TX = 0xffd9;
+
+	// not used, can read status
+	const SERVICE_UUID_RX = 0xffd0; // aka "0000ffd0-0000-1000-8000-00805f9b34fb"
+	const CHARACTERISTIC_RX = 0xffd4;
+
+	var name;
+	var id;
+	var device;
+	var service;
+	var server;
+	var characteristic;
+
+	function addDevice(device) {
+
+	    name = device.name;
+	    id = device.id;
+	    return device.gatt.connect().then(server0 => {
+	        console.log("server", server0);
+	        server = server0;
+	        return server.getPrimaryService(SERVICE_UUID);
+	    }).then(service0 => {
+	        console.log("service", service0);
+	        service = service0;
+	        return service.getCharacteristic(CHARACTERISTIC_TX);
+	    }).then(characteristic0 => {
+	        console.log("characteristic", characteristic0);
+	        characteristic = characteristic0;
+
+	    }).catch(e => {
+	        console.log(e, device);
+	    })
+	}
+
+	function connect() {
+	    // https://googlechrome.github.io/samples/web-bluetooth/device-info.html
+	    let filters = [];
+	    // name is eg Triones-FFFFB000423F
+	    filters.push({
+	        "namePrefix": namePrefix
+	    });
+	    let options = {
+	        "optionalServices": [SERVICE_UUID]
+	    };
+
+	    // either one of these lines
+	    options.filters = filters;
+	    //options.acceptAllDevices = true;
+
+
+	    navigator.bluetooth.requestDevice(options).then(device => {
+	        console.log('> Name:             ' + device.name);
+	        console.log('> Id:               ' + device.id);
+	        console.log('> Connected:        ' + device.gatt.connected);
+	        addDevice(device);
+	    })
+	}
+
+	function sendCommand(message) {
+	    service.getCharacteristic(CHARACTERISTIC_TX).then(characteristic => {
+	        console.log("sending message ", message);
+	        characteristic.writeValue(new Uint8Array(message)).then(message => {
+
+	            console.log("message", message);
+
+	        });
+	    });
+	}
+
+	function on() {
+
+	    sendCommand([0xcc, 0x23, 0x33])
+
+	}
+
+	function off() {
+
+	    sendCommand([0xcc, 0x24, 0x33])
+
+	}
+
+	function setRGB(r, g, b) {
+
+	    sendCommand([0x56, r, g, b, 0x00, 0xf0, 0xaa])
+
+	}
+
+	function setIntensity(intensity) {
+
+	    sendCommand([0x56, 0x00, 0x00, 0x00, intensity, 0x0f, 0xaa])
+
+	}
+
+	function setMode(mode, speed) {
+
+	    sendCommand([0xbb, mode, speed, 0x44])
+
+	}
+	
+
+	
+	
+	</script>
+</body>
+
+</html>
