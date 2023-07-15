@@ -1,6 +1,6 @@
 <html>
 <head>
-<script src="nmea.js"></script>
+<script src="gps.min.js"></script>
 </head>
 <body>
 
@@ -12,6 +12,7 @@
 
 <script>
 // https://github.com/AndrewPlayer3/WebSerialGPS
+// https://github.com/infusion/GPS.js/
 var gpsPort;
 var needConcat = false;
 const decoder = new TextDecoder('UTF-8');
@@ -24,8 +25,11 @@ async function openGPSPort() {
         gpsPort = await navigator.serial.requestPort({
             filters:
             [{
+                    // tested with
+                    // u-blox GNSS receiver
+                    // u-blox 7 GPS / GNSS Receiver
                     usbVendorId: 0x1546, // GPS USB Vendor ID, can be found by using lsusb
-                }, // You may need to add your GPS's vid here ❗
+                },
             ],
         })
             console.log(
@@ -77,18 +81,29 @@ async function readUntilClosed() {
                                 }
 
                                 for (let j = 0; j < data_arr.length; j++) {
-                                    var decodedMessage = parseNMEAMessage(data_arr[j]);
-                                    console.log(decodedMessage ? parseNMEAMessage(data_arr[j]) : data_arr[j]);
 
-                                    if (decodedMessage && decodedMessage.latitude) {
-                                        document.getElementById("latitude").innerHTML = "Latitude: " + decodedMessage.latitude.toFixed(6) + decodedMessage.latDirection;
+                                    if (data_arr[j]) {
+
+                                        console.log(data_arr[j]);
+
+                                        var data = data_arr[j];
+
+                                        // replace $$ with $
+                                        // looks wrong, is correct!!!!!!!!!!!!!
+                                        while (data.indexOf("$$") > -1) {
+                                            data = data.replaceAll("$$", "$$");
+                                        }
+                                        data = data.split("$");
+
+                                        for (var i = 0; i < data.length; i++) {
+
+                                            if (data[i]) {
+                                                // eg gps.update("$GPGGA,224900.000,4832.3762,N,00903.5393,E,1,04,7.8,498.6,M,48.0,M,,0000*5E");
+                                                gps.update("$" + data[i]);
+                                            }
+                                        }
                                     }
-                                    if (decodedMessage && decodedMessage.longitude) {
-                                        document.getElementById("longitude").innerHTML = "Latitude: " + decodedMessage.longitude.toFixed(6) + decodedMessage.lonDirection;
-                                    }
-                                    if (decodedMessage && decodedMessage.utc) {
-                                        document.getElementById("utc").innerHTML = "UTC: " + decodedMessage.utc;
-                                    }
+
                                 }
                                 data_arr = []
                 }
@@ -102,44 +117,18 @@ async function readUntilClosed() {
     await gpsPort.close()
 }
 
-/* Parse an NMEA GPS Sentence to get a more displayable format. */
-function parseNMEAMessage(data) {
-    // I get some messages starting $$GPGLL and $$GPGSV rather than $GPGLL and $GPGSV
-    if (data.startsWith("$$")) {
-        data = data.substring(1);
-    }
+const gps = new GPS;
 
-    try {
-        let message
-        switch (data.substring(0, 6)) {
-        case '$GPGGA':
-            message = new GPGGA(data)
+gps.on('data', () => {
+    console.log(gps.state);
 
-                break
-            case '$GPRMC':
-                message = new GPRMC(data)
-                break
-            case '$GPGSA':
-                message = new GPGSA(data)
-                break
-            case '$GPGLL':
-                message = new GPGLL(data)
-                break
-            case '$GPVTG':
-                message = new GPVTG(data)
-                break
-            default:
-                // eg '$GPGSV' https://docs.novatel.com/OEM7/Content/Logs/GPGSV.htm
-                message = null
-                break
-        }
-        return message
-    } catch (error) {
-        console.log(
-            "Error Processing GPRMC Sentence: " + error.message)
-        return null
-    }
-}
+    document.getElementById("utc").innerHTML = "UTC: " + gps.state.time;
+    document.getElementById("latitude").innerHTML = "Latitude: " + gps.state.lat.toFixed(6);
+    document.getElementById("longitude").innerHTML = "Latitude: " + gps.state.lon.toFixed(6);
+
+});
+
+
 </script>
 
 
