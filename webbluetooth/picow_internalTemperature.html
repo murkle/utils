@@ -1,169 +1,182 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Raspberry Pico Web Bluetooth Serial Monitor https://github.com/murkle/Pico_WebBluetooth_Read_Temperature/blob/main/index.html</title>
+  <title>Web Bluetooth Demo</title>
   <meta charset="UTF-8">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-    }
 
-    .container {
-      max-width: 500px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .button {
-      display: inline-block;
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #4CAF50;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
-
-    .button:hover {
-      background-color: #45a049;
-    }
-
-    .input-field {
-      width: 100%;
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-
-    .log-entry {
-      font-size: 20px;
-    }
-
-    .temperature-box {
-      display: inline-block;
-      padding: 10px;
-      background-color: #f1f1f1;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-
-    .temperature {
-      font-size: 24px;
-      font-weight: bold;
-    }
-  </style>
 </head>
 <body>
   <div class="container">
-    <h2>Pico Web Bluetooth Read Temperature</h2>
-    <button id="connectButton" class="button" onclick="connectToDevice()">Connect</button>
-    <button id="disconnectButton" class="button" onclick="disconnectFromDevice()" disabled>Disconnect</button>
+    <h2>Pico Internal Temperature</h2>
+    <button id="connectButton" class="button" onclick="discoverDevices()">Connect</button>
+    <button id="disconnectButton" class="button" onclick="disconnectFromDevice()" >Disconnect</button>
+    <button id="forgetButton" class="button" onclick="forgetDevice()" >Forget</button>
+    <button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/Pico_WebBluetooth_Read_Temperature/blob/main/index.html', '_blank').focus();" >Edit on GitHub</button>
+
+
     <br><br>
-    <div id="temperatureContainer"></div>
+    <div id="result"></div>
+   <br><br>
+    <div id="logging"></div>
   </div>
 
   <script>
-    let device;
-    let logElement;
-    let writeCharacteristic;
-    let readCharacteristic;
+  
+  const UUID_ENVIRONMENTAL_SENSING_SERVICE = '0000181a-0000-1000-8000-00805f9b34fb';
+  const UUID_TEMPERATURE_CHARACTERISTIC = '00002a6e-0000-1000-8000-00805f9b34fb';
 
-    function log(message) {
+  const namePrefix = "Pico ";
+  let service;
+  let device;
+  const logElement = document.getElementById('logging'); ;
+
+  function log(message) {
       const logEntry = document.createElement('div');
       logEntry.classList.add('log-entry');
       logEntry.innerText = message;
 
       logElement.appendChild(logEntry);
-    }
+  }
 
-    async function connectToDevice() {
-      try {
-        logElement = document.getElementById('temperatureContainer');
-        log('Requesting Bluetooth Device...');
-
-        if (device && device.gatt.connected) {
-          log('Already connected to ' + device.name);
-          return;
-        }
-		
-		let filters = [];
-		// name is eg "Pico 28:CD:C1:0B:EA:62"
-		filters.push({
-			namePrefix: "Pico "
-		});
-		let options = {
-			"optionalServices": ['0000181a-0000-1000-8000-00805f9b34fb']
-		};
-		options.filters = filters;
-
-        device = await navigator.bluetooth.requestDevice(options);
-
-        log('Connecting to GATT Server...');
-        const server = await device.gatt.connect();
-
-        
-        log('Getting Serial Service...');
-        const service = await server.getPrimaryService('0000181a-0000-1000-8000-00805f9b34fb');
-
-
-        log('Getting Serial Port Read Characteristic...');
-        readCharacteristic = await service.getCharacteristic('00002a6e-0000-1000-8000-00805f9b34fb');
-
-        log('Enabling notifications...');
-        await readCharacteristic.startNotifications();
-        readCharacteristic.addEventListener('characteristicvaluechanged', handleData);
-        
-
-        device.ongattserverdisconnected = handleDisconnect; // Assigning the disconnect handler
-
-        log('Connected to ' + device.name);
-
-        document.getElementById('connectButton').disabled = true;
-        document.getElementById('disconnectButton').disabled = false;
-      } catch (error) {
-        log('Error: ' + error);
-      }
-    }
-
-    function handleDisconnect() {
+  function handleDisconnect() {
       log('Connection lost. Device disconnected.');
       document.getElementById('connectButton').disabled = false;
       document.getElementById('disconnectButton').disabled = true;
       alert('Connection lost. Device disconnected.');
-    }
+  }
 
-    function disconnectFromDevice() {
+  function disconnectFromDevice() {
       if (device && device.gatt.connected) {
-        device.gatt.disconnect();
+          device.gatt.disconnect();
       }
-    }
+  }
 
-    function handleData(event) {
+  function forgetDevice() {
+      if (device) {
+          device.forget();
+      }
+  }
+
+  async function discoverDevices() {
+      log("discoverDevices");
+      let filters = [];
+      // name is eg "Pico 28:CD:C1:0B:EA:62"
+      filters.push({
+          "namePrefix": namePrefix
+      });
+      let options = {
+          "optionalServices": [UUID_ENVIRONMENTAL_SENSING_SERVICE]
+      };
+      options.filters = filters;
+
+      device = await navigator.bluetooth.requestDevice(options);
+
+      log('> Name:' + device.name);
+      log('> Id:' + device.id);
+      log(device);
+
+      await connectToDevice(device);
+
+      log('Notifications have been started.');
+  }
+
+  async function connectToDevice(device) {
+
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+
+      log('Connecting to GATT Server...');
+      const server = await device.gatt.connect();
+
+      log('Getting Service...');
+      const service = await server.getPrimaryService(UUID_ENVIRONMENTAL_SENSING_SERVICE);
+
+      log('Getting Serial Port Read Characteristic...');
+      const characteristic = await service.getCharacteristic(UUID_TEMPERATURE_CHARACTERISTIC);
+      characteristic.addEventListener('characteristicvaluechanged', handleData);
+
+      log('Enabling notifications...');
+      await characteristic.startNotifications();
+      log('Connected to ' + device.name);
+
+  }
+
+  function handleDistanceChanged(event) {
+      const value = event.target.value;
+      log('Got distance: ' + value.getFloat32(0, true));
+
+      document.getElementById("result").innerHTML = "Distance = " + value.getFloat32(0, true).toFixed(4) + " m";
+  }
+
+  function handleData(event) {
       const jsonBytes = new Uint8Array(event.target.value.buffer);
-	  
-	  const jsonString = String.fromCharCode(...jsonBytes);
-	  
-	  // eg {"device":"Pico W", "temperatureC":35.00288}
-	  const json = JSON.parse(jsonString);
-	  
-	  console.log("from device", json);
-	  
+
+      const jsonString = String.fromCharCode(...jsonBytes);
+
+      // eg {"device":"Pico W", "temperatureC":35.00288}
+      const json = JSON.parse(jsonString);
+
+      console.log("from device", json);
+
       const temperature = json.temperatureC;
 
-      const temperatureBox = document.createElement('div');
-      temperatureBox.classList.add('temperature-box');
+      log('Got temp: ' + temperature);
 
-      const temperatureValue = document.createElement('span');
-      temperatureValue.classList.add('temperature');
-      temperatureValue.innerText = temperature.toFixed(2) + ' °C';
+      document.getElementById("result").innerHTML = "Pico internal Temperature = " + temperature.toFixed(1) + " °C";
 
-      temperatureBox.appendChild(temperatureValue);
+  }
+  function onDisconnected(event) {
+      const device = event.target;
+      log(`Device ${device.name} is disconnected.`);
+  }
 
-      logElement.innerHTML = '';
-      logElement.appendChild(temperatureBox);
-    }
+  function log(message) {
+      const logEntry = document.createElement('div');
+      logEntry.classList.add('log-entry');
+      logEntry.innerText = message;
+
+      logElement.appendChild(logEntry);
+  }
+
+  // https://docs.google.com/document/d/1RF4D-60cQJWR1LoQeLBxxigrxJwYS8nLOE0qWmBF1eo/edit
+  // try to connect to existing device
+  async function getPermittedBluetoothDevices() {
+      let devices = await navigator.bluetooth.getDevices();
+      for (let device0 of devices) {
+          // Start a scan for each device before connecting to check that they're in
+          // range.
+          let abortController = new AbortController();
+          await device0.watchAdvertisements({
+              signal: abortController.signal
+          });
+          device0.addEventListener('advertisementreceived', async(evt) => {
+              // Stop the scan to conserve power on mobile devices.
+              abortController.abort();
+
+              // Advertisement data can be read from |evt|.
+              let deviceName = evt.name;
+              let uuids = evt.uuids;
+              let appearance = evt.appearance;
+              let pathloss = evt.txPower - evt.rssi;
+              let manufacturerData = evt.manufacturerData;
+              let serviceData = evt.serviceData;
+
+              if (evt.device.name.startsWith(namePrefix)) {
+
+                  log("Found previously connected device " + device0.name)
+
+                  // At this point, we know that the device is in range, and we can attempt
+                  // to connect to it.
+                  device = evt.device;
+                  await connectToDevice(device);
+              } else {
+                  log("Ignoring device " + device0.name + " as it doesn't start with " + namePrefix);
+              }
+          });
+      }
+  }
+
+  getPermittedBluetoothDevices();
+
   </script>
 </body>
 </html>
