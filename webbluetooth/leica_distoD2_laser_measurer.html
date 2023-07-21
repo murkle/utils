@@ -11,6 +11,9 @@
     <button id="connectButton" class="button" onclick="discoverDevices()">Connect</button>
     <button id="disconnectButton" class="button" onclick="disconnectFromDevice()" >Disconnect</button>
     <button id="forgetButton" class="button" onclick="forgetDevice()" >Forget</button>
+    <button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webbluetooth/leica_distoD2_laser_measurer.html', '_blank').focus();" >Edit on GitHub</button>
+
+
     <br><br>
     <div id="result"></div>
    <br><br>
@@ -151,12 +154,17 @@
               let manufacturerData = evt.manufacturerData;
               let serviceData = evt.serviceData;
 
-              log("Found previously connected device " + device0.name)
+              if (evt.device.name.startsWith(namePrefix)) {
 
-              // At this point, we know that the device is in range, and we can attempt
-              // to connect to it.
-              device = evt.device;
-              await connectToDevice(device);
+                  log("Found previously connected device " + device0.name)
+
+                  // At this point, we know that the device is in range, and we can attempt
+                  // to connect to it.
+                  device = evt.device;
+                  await connectToDevice(device);
+              } else {
+                  log("Ignoring device " + device0.name + " as it doesn't start with " + namePrefix);
+              }
           });
       }
   }
