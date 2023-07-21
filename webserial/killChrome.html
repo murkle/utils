@@ -1,0 +1,76 @@
+<html>
+<head>
+<script src="gps.min.js"></script>
+</head>
+<body>
+
+<button onclick="openPort()">Connect to Force Trainer II</Button>
+<button onclick="reader.releaseLock();port.close();">Stop</Button>
+
+<script>
+
+var port;
+var needConcat = false;
+const decoder = new TextDecoder('UTF-8');
+var data_string = "";
+var reader;
+
+/* Request access to the GPS's port, and open it so it can be read. */
+async function openPort() {
+    try {
+        port = await navigator.serial.requestPort({})
+            console.log(
+                'Selected Port: ', port.getInfo())
+            await port.open({
+                baudRate: 115200,
+                dataBits: 8,
+                stopBits: 1,
+                parity: 'none',
+                flowControl: 'none'
+            })
+            console.log(
+                'The selected port has been opened.');
+        readUntilClosed();
+        return true
+    } catch (error) {
+        console.log(
+            'Error Opening Port: ', error.message)
+        return false
+    }
+}
+
+/* Keep reading and displaying the GPS serial data until user clicks stop. */
+async function readUntilClosed() {
+    if (port.readable) {
+        reader = port.readable.getReader()
+            try {
+                //while (true) {
+                const {
+                    value,
+                    done
+                } = await reader.read();
+
+                console.log(value);
+
+                //}
+            } catch (error) {
+                console.log(
+                    'Error in Reader Loop: ', error.message)
+            } finally {
+                reader.releaseLock()
+            }
+
+            setTimeout(readUntilClosed, 1000);
+
+    }
+
+}
+
+
+
+</script>
+
+
+
+</body>
+</html>
