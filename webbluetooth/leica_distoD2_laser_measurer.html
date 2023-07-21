@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web Bluetooth Demo</title>
+  <meta charset="UTF-8">
+
+</head>
+<body>
+  <div class="container">
+    <h2>Leica D2 Laser Measurer</h2>
+    <button id="connectButton" class="button" onclick="discoverDevices()">Connect</button>
+    <button id="disconnectButton" class="button" onclick="disconnectFromDevice()" >Disconnect</button>
+    <button id="forgetButton" class="button" onclick="forgetDevice()" >Forget</button>
+    <br><br>
+    <div id="result"></div>
+   <br><br>
+    <div id="logging"></div>
+  </div>
+
+  <script>
+  // info from https://stackoverflow.com/questions/69629692/how-to-read-laser-distance-measure-via-web-bluetooth
+  const DISTO_SERVICEID = '3ab10100-f831-4395-b29d-570977d5bf94';
+  const DISTO_DISTANCE = "3ab10101-f831-4395-b29d-570977d5bf94";
+  const DISTO_DISTANCE_UNIT = "3ab10102-f831-4395-b29d-570977d5bf94";
+  const DISTO_COMMAND = "3ab10109-f831-4395-b29d-570977d5bf94";
+  const STATE_RESPONSE = "3ab1010a-f831-4395-b29d-570977d5bf94";
+  const DS_MODEL_NAME = "3ab1010c-f831-4395-b29d-570977d5bf94";
+  const BATTERY_SERVICE = '0000180f-0000-1000-8000-00805f9b34fb';
+  const DEVICE_INFORMATION = '0000180a-0000-1000-8000-00805f9b34fb';
+
+  const namePrefix = "DISTO ";
+  let service;
+  let device;
+  const logElement = document.getElementById('logging'); ;
+
+  function log(message) {
+      const logEntry = document.createElement('div');
+      logEntry.classList.add('log-entry');
+      logEntry.innerText = message;
+
+      logElement.appendChild(logEntry);
+  }
+
+  function handleDisconnect() {
+      log('Connection lost. Device disconnected.');
+      document.getElementById('connectButton').disabled = false;
+      document.getElementById('disconnectButton').disabled = true;
+      alert('Connection lost. Device disconnected.');
+  }
+
+  function disconnectFromDevice() {
+      if (device && device.gatt.connected) {
+          device.gatt.disconnect();
+      }
+  }
+
+  function forgetDevice() {
+      if (device) {
+          device.forget();
+      }
+  }
+
+  async function discoverDevices() {
+      log("discoverDevices");
+      let filters = [];
+
+      // filter on EITHER namePrefix OR services
+      filters.push({
+          namePrefix: namePrefix
+      });
+      //filters.push({
+      //    services: [DISTO_SERVICEID]
+      //});
+
+      let options = {
+          optionalServices: [DEVICE_INFORMATION, BATTERY_SERVICE, DISTO_SERVICEID],
+          acceptAllDevices: false
+      }
+      options.filters = filters;
+
+      device = await navigator.bluetooth.requestDevice(options);
+
+      log('> Name:' + device.name);
+      log('> Id:' + device.id);
+      log(device);
+
+      await connectToDevice(device);
+
+      log('Notifications have been started.');
+  }
+
+  async function connectToDevice(device) {
+
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+
+      log('Connecting to GATT Server...');
+      const server = await device.gatt.connect();
+
+      log('Getting Service...');
+      const service = await server.getPrimaryService(DISTO_SERVICEID);
+
+      log('Getting Distance Characteristic...');
+      const characteristic = await service.getCharacteristic(DISTO_DISTANCE);
+      characteristic.addEventListener('characteristicvaluechanged', handleDistanceChanged);
+
+      log('Enabling notifications...');
+      await characteristic.startNotifications();
+      log('Connected to ' + device.name);
+
+  }
+
+  function handleDistanceChanged(event) {
+      const value = event.target.value;
+      log('Got distance: ' + value.getFloat32(0, true));
+
+      document.getElementById("result").innerHTML = "Distance = " + value.getFloat32(0, true).toFixed(4) + " m";
+  }
+  function onDisconnected(event) {
+      const device = event.target;
+      log(`Device ${device.name} is disconnected.`);
+  }
+
+  function log(message) {
+      const logEntry = document.createElement('div');
+      logEntry.classList.add('log-entry');
+      logEntry.innerText = message;
+
+      logElement.appendChild(logEntry);
+  }
+
+  // https://docs.google.com/document/d/1RF4D-60cQJWR1LoQeLBxxigrxJwYS8nLOE0qWmBF1eo/edit
+  // try to connect to existing device
+  async function getPermittedBluetoothDevices() {
+      let devices = await navigator.bluetooth.getDevices();
+      for (let device0 of devices) {
+          // Start a scan for each device before connecting to check that they're in
+          // range.
+          let abortController = new AbortController();
+          await device0.watchAdvertisements({
+              signal: abortController.signal
+          });
+          device0.addEventListener('advertisementreceived', async(evt) => {
+              // Stop the scan to conserve power on mobile devices.
+              abortController.abort();
+
+              // Advertisement data can be read from |evt|.
+              let deviceName = evt.name;
+              let uuids = evt.uuids;
+              let appearance = evt.appearance;
+              let pathloss = evt.txPower - evt.rssi;
+              let manufacturerData = evt.manufacturerData;
+              let serviceData = evt.serviceData;
+
+              log("Found previously connected device " + device0.name)
+
+              // At this point, we know that the device is in range, and we can attempt
+              // to connect to it.
+              device = evt.device;
+              await connectToDevice(device);
+          });
+      }
+  }
+
+  getPermittedBluetoothDevices();
+
+  </script>
+</body>
+</html>
