@@ -1,0 +1,321 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="https://unpkg.com/mvp.css"> 
+</head>
+
+<body>
+	<button onclick="connect()">Connect to MiP Robot</button>
+	<button onclick="forwards(10)">Move forwards 10cm</button>
+	<button onclick="forwards(-10)">Move backwards cm</button>
+	<button onclick="turnLeft(90)">Turn Left</button>
+	<button onclick="turnRight(90)">Turn Right</button>
+	<button onclick="playSound(57)">Oopsie</button>
+	<button onclick="clapEnable(true)">Enable clap detection</button>
+	<button onclick="enableGestures()">Enable gesture detection</button>
+	<button onclick="enableRadar()">Enable radar mode</button>
+	<button onclick="chestLED(255,0,0)">Set Chest LED</button>
+	<button onclick="headLEDs(3,3,3,3)">Blink head LEDs</button>
+	<button onclick="flashChestLED(0,255,0, 10, 20)">Flash Chest LED</button>
+	<br>
+	<div id="status">Disconnected</div>
+	
+	<script>
+
+	function setStatus(message) {
+	    document.getElementById("status").innerHTML = message;
+	}
+
+	// protocol from https://github.com/WowWeeLabs/MiP-BLE-Protocol/blob/master/MiP-Protocol.md
+	// and https://github.com/vlimit/mip/blob/master/src/mippy/__init__.py
+	// and https://github.com/WowWeeLabs/MiP-Node.js-SDK/blob/master/lib/mip/constants.json
+	// buy from eg https://www.amazon.co.uk/Wow-Wee-0821-WowWee-Balancing/dp/B00KMSOIGM
+
+
+	// eg Mip-12345
+	var namePrefix = "Mip-";
+
+	const SERVICE_UUID_TX = 0xffe5;
+	const CHARACTERISTIC_TX = 0xffe9;
+
+	const SERVICE_UUID_RX = 0xffe0;
+	const CHARACTERISTIC_RX = 0xffe4
+
+	    var name;
+	var id;
+	var device;
+	var service;
+	var server;
+	var characteristic;
+
+	function addDevice(device) {
+
+	    name = device.name;
+	    id = device.id;
+	    return device.gatt.connect().then(server0 => {
+	        console.log("server", server0);
+	        server = server0;
+	        setStatus("Found server, getting device...");
+	        return server.getPrimaryService(SERVICE_UUID_TX);
+	    }).then(service0 => {
+	        console.log("service", service0);
+	        service = service0;
+	        setStatus("Found service, getting characteristic...");
+	        return service.getCharacteristic(CHARACTERISTIC_TX);
+	    }).then(characteristic0 => {
+	        console.log("characteristic", characteristic0);
+	        characteristic = characteristic0;
+	        setStatus("Connected");
+
+	        setupRX();
+
+	    }).catch(e => {
+	        console.log(e, device);
+	        setStatus(e + "");
+
+	    })
+	}
+
+	function connect() {
+	    // https://googlechrome.github.io/samples/web-bluetooth/device-info.html
+	    let filters = [];
+	    // name is eg Mip-12345
+	    filters.push({
+	        "namePrefix": namePrefix
+	    });
+	    let options = {
+	        "optionalServices": [SERVICE_UUID_TX, SERVICE_UUID_RX]
+	    };
+
+	    // either one of these lines
+	    options.filters = filters;
+	    //options.acceptAllDevices = true;
+
+
+	    navigator.bluetooth.requestDevice(options).then(device => {
+	        console.log('> Name:             ' + device.name);
+	        console.log('> Id:               ' + device.id);
+	        console.log('> Connected:        ' + device.gatt.connected);
+	        addDevice(device);
+	    })
+	}
+
+	function sendCommand(message) {
+	    service.getCharacteristic(CHARACTERISTIC_TX).then(characteristic => {
+	        console.log("sending message ", message);
+	        characteristic.writeValue(new Uint8Array(message));
+	    });
+	}
+
+	function moveForwards() {
+	    sendCommand([0x71, 0x10, 0xb8]);
+	}
+
+	function moveBackwards() {
+	    sendCommand([0x72, 0x10, 0xb8]);
+	}
+
+	function turnWiddershins() {
+	    sendCommand([0x73, 0x64, 0xb8]);
+	}
+
+	function turnClockwise() {
+	    sendCommand([0x74, 0x64, 0xb8]);
+	}
+
+	function standUp(pos) {
+	    sendCommand([35, pos || 0x00]);
+	}
+
+	function chestLED(r, g, b) {
+
+	    sendCommand([132, r, g, b]);
+	}
+
+	function flashChestLED(r, g, b, on, off) {
+
+	    sendCommand([137, r, g, b, on, off]);
+	}
+
+	// 0=off, 1=on, 2=blink slow, 3=blink fast
+	function headLEDs(light1, light2, light3, light3) {
+
+	    sendCommand([0x8a, light1, light2, light3, light3]);
+	}
+
+	function clapEnable(enable) {
+
+	    sendCommand([0x1e, enable ? 0x01 : 0x00]);
+	}
+
+	function requestClapStatus() {
+
+	    sendCommand([0x1f]);
+	}
+
+	function requestStatus() {
+
+	    sendCommand([121]);
+	}
+
+	function turnLeft(angleDegrees) {
+
+	    sendCommand([115, angleDegrees / 4.6, 24])
+
+	}
+
+	function turnRight(angleDegrees) {
+
+	    sendCommand([116, angleDegrees / 4.6, 24])
+
+	}
+
+	function forwards(distanceCm) {
+
+	    sendCommand([112, distanceCm > 0 ? 0x00 : 0x01, Math.abs(distanceCm), 0, 0, 0])
+	}
+
+	function enableGestures() {
+	    sendCommand([0x0c, 0x02]);
+	}
+	function enableRadar() {
+	    sendCommand([0x0c, 0x04]);
+	}
+
+	// 1 - 106 for different sounds
+	// see https://github.com/WowWeeLabs/MiP-Node.js-SDK/blob/master/lib/mip/constants.json
+	// 105 = SHORT_MUTE_FOR_STOP to stop playing
+	// 0xF7-0xFE for volume
+	function playSound(sound) {
+	    sendCommand([0x06, sound]);
+	}
+
+	var serviceRX;
+	var characteristicRX;
+	const EVENT_CLAP = [49, 68, 48, 49];
+
+	// 6 bytes in total, last byte is orientation
+	// not sure about others
+	const EVENT_ORIENTATION = [55, 57];
+
+	const EVENT_GESTURE = [48, 65];
+
+	const EVENT_RADAR = [48, 67, 48];
+
+	// TODO: work out what these events are
+	// 48,65,49,48
+	// 55,57,53,70,48,50
+	// 56,49,48,48
+	// 56,49,48,50
+	// 56,49,48,4
+	function match(data, event) {
+
+	    if (data.length < data.event) {
+	        return false;
+	    }
+
+	    for (var i = 0; i < event.length; i++) {
+	        if (data[i] != event[i]) {
+
+	            return false;
+	        }
+	    }
+	    return true;
+	}
+
+	function receiveData(event) {
+
+	    var data = new Uint8Array(event.srcElement.value.buffer);
+	    console.log("characteristicRX", data);
+
+	    if (match(data, EVENT_CLAP)) {
+	        setStatus("Clap detected");
+	        return;
+	    }
+
+	    if (match(data, EVENT_GESTURE)) {
+	        setStatus("Gesture detected: " + data[2] + " " + data[3]);
+	        return;
+	    }
+
+	    if (match(data, EVENT_RADAR)) {
+	        switch (data[3]) {
+	        case 49:
+	            setStatus("Radar event: far");
+	            break;
+	        case 50:
+	            setStatus("Radar event: medium");
+	            break;
+	        case 51:
+	            setStatus("Radar event: near");
+	            break;
+	        default:
+	            setStatus("Radar event: Unknown");
+	            break;
+	        }
+	        return;
+	    }
+
+	    if (match(data, EVENT_ORIENTATION)) {
+	        switch (data[5]) {
+	        case 48:
+	            setStatus("On Back");
+	            break;
+	        case 49:
+	            setStatus("Face down");
+	            break;
+	        case 50:
+	            setStatus("Upright");
+	            break;
+	        case 51:
+	            setStatus("Picked up");
+	            break;
+	        case 52:
+	            setStatus("Handstand");
+	            break;
+	        case 53:
+	            setStatus("Facedown (tray)");
+	            break;
+	        case 54:
+	            setStatus("On Back (with kickstand)");
+	            break;
+	        default:
+	            setStatus("Unknown");
+	            break;
+	        }
+	        return;
+	    }
+
+	    setStatus("Unknown event " + JSON.stringify(data));
+
+	}
+
+	function setupRX() {
+
+	    server.getPrimaryService(SERVICE_UUID_RX).then(service0 => {
+	        console.log("service", service0);
+	        serviceRX = service0;
+	        return serviceRX.getCharacteristic(CHARACTERISTIC_RX);
+	    }).then(characteristic0 => {
+	        console.log("characteristic", characteristic0);
+	        characteristicRX = characteristic0;
+
+	        characteristicRX.addEventListener('characteristicvaluechanged', receiveData);
+
+	        characteristicRX.startNotifications();
+
+	        console.log(characteristicRX);
+
+	        setStatus("Connected for transmitting and receiving");
+
+	        playSound(19);
+
+	    }).catch(e => {
+	        console.log(e, device);
+	    })
+
+	}
+	</script>
+</body>
+
+</html>
