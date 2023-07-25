@@ -23,31 +23,35 @@
 	const CODENODE_CMD_SET_LEDS = 0X03;
 	const CODENODE_CMD_SET_SOUND_FREQ = 0X04;
 	const GCMD_CUSTOM_CMD = 0x37
-	    const GCMD_CONTROL_NODE_CMD = 0x37
-	    const CTRLNODE_CMD_DETECT_DEVICES = 2 // Detects which devices are attached
-	    const GCMD_READ_ONE_SAMPLE = 0x05
-	    const GCMD_XFER_BURST_RAM = 0X0E
-	    const GRSP_RESULT = 0XC0 // Generic response packet
-	    const GEVT_SENSOR_ID = 0x82 // Get Sensor ID (for AirLink)
+	    const GCMD_CONTROL_NODE_CMD = 0x37;
+	const CTRLNODE_CMD_DETECT_DEVICES = 2 // Detects which devices are attached
+	    const GCMD_READ_ONE_SAMPLE = 0x05;
+	const GCMD_XFER_BURST_RAM = 0X0E;
+	const GRSP_RESULT = 0XC0; // Generic response packet
+	const GEVT_SENSOR_ID = 0x82; // Get Sensor ID (for AirLink)
 
-	    WIRELESS_RMS_START = [0X37, 0X01, 0X00]
+	const WIRELESS_RMS_START = [0X37, 0X01, 0X00]; // Rotary Motion?
 
-	    // service id
-	    const SENSOR_SERVICE_ID = 0
+	// service id
+	const SENSOR_SERVICE_ID = 1
 	    const pasport_service_id = 1 // airlink?
 	    // characteristic ids
 	    const SEND_CMD_CHAR_ID = 2
 	    const RECV_CMD_CHAR_ID = 3 //  not used?
 	    const SEND_ACK_CHAR_ID = 5
 
-	    const SERVICE_UUID = "4a5c000" + SENSOR_SERVICE_ID + "-000" + "0" + "-0000-0000-5c1e741f1c00";
+	function SERVICE_UUID(service_id) {
+	    return "4a5c000" + service_id + "-000" + "0" + "-0000-0000-5c1e741f1c00";
+	}
 	//const CHARACTERISTIC_TX = "4a5c000" + SENSOR_SERVICE_ID + "-000" + SEND_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
 
 	function CHARACTERISTIC_TX(service_id) {
 	    return "4a5c000" + service_id + "-000" + SEND_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
 	}
 
-	const CHARACTERISTIC_RX = "4a5c000" + SENSOR_SERVICE_ID + "-000" + RECV_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
+	function CHARACTERISTIC_RX(service_id) {
+	    return "4a5c000" + service_id + "-000" + RECV_CMD_CHAR_ID + "-0000-0000-5c1e741f1c00";
+	}
 
 	function CHARACTERISTIC_ACK(sensorId) {
 	    return "4a5c000" + (sensorId + 1) + "-000" + SEND_ACK_CHAR_ID + "-0000-0000-5c1e741f1c00";
@@ -60,56 +64,43 @@
 
 	}
 	// eg ["GoCube2x2_14FA90", "GoDice_A757B5_B_v04", "GoDice_B7D0A7_K_v04"]
-	window.names = [];
+	var name;
+	var id;
 	// all these indexed by eg names[0]
-	var ids = [];
-	var devices = [];
-	window.services = [];
-	var servers = [];
-	window.characteristics = [];
-	var descriptorses = [];
+	var device;
+	var service;
+	var server;
+	var characteristic;
+	var characteristicUNKNOWN;
+	var characteristicRX; ;
+	async function addDevice(device) {
+	    name = device.name;
+	    id = device.id;
+	    server = await device.gatt.connect();
 
-	function addDevice(device) {
-	    if (names.includes(device.name)) {
-	        console.log(device.name + " already connected");
-	        return;
-	    }
-	    names.push(device.name);
-	    ids[device.name] = device.id;
-	    return device.gatt.connect().then(server => {
-	        console.log("server", server);
-	        server[device.name] = server;
-	        return server.getPrimaryService(SERVICE_UUID);
-	    }).then(service => {
-	        console.log("service", service);
-	        services[device.name] = service;
-	        return service.getCharacteristic(CHARACTERISTIC_TX(SENSOR_SERVICE_ID));
-	    }).then(characteristic => {
-	        console.log("characteristic", characteristic);
-	        characteristics[device.name] = characteristic;
+	    service = await server.getPrimaryService(SERVICE_UUID(SENSOR_SERVICE_ID));
 
-	        services[names[0]].getCharacteristic(CHARACTERISTIC_RX).then(characteristicRX => {
+	    characteristic = await service.getCharacteristic(CHARACTERISTIC_TX(SENSOR_SERVICE_ID));
 
-	            console.log("CHARACTERISTIC_RX", characteristicRX);
+	    console.log("characteristic", characteristic);
 
-	            characteristicRX.addEventListener('characteristicvaluechanged', function (event) {
-	                characteristicValueChanged(event, device.name)
-	            });
+	    characteristicUNKNOWN = await service.getCharacteristic("4a5c0001-0004-0000-0000-5c1e741f1c00");
+	    console.log("characteristicUNKNOWN", characteristicUNKNOWN);
+	    characteristicUNKNOWN.addEventListener('characteristicvaluechanged', function (event) {
+	        characteristicValueChanged(event);
+	    });
+	    characteristicUNKNOWN.startNotifications();
 
-	        });
+	    characteristicRX = await service.getCharacteristic(CHARACTERISTIC_RX(SENSOR_SERVICE_ID));
+	    console.log("characteristicRX", characteristicRX);
+	    characteristicRX.addEventListener('characteristicvaluechanged', function (event) {
+	        characteristicValueChanged(event);
+	    });
+	    characteristicRX.startNotifications();
 
-	        //return characteristic.getDescriptors();
-	    }).then(descriptors => {
-	        console.log("descriptors", descriptors);
-	        descriptorses[device.name] = descriptors;
-	        // https://www.bluetooth.com/specifications/assigned-numbers/
-	        // 0x2902 = Client Characteristic Configuration
-	        // GoDice return BluetoothRemoteGATTDescriptor with uuid: "00002902-0000-1000-8000-00805f9b34fb"
-	    }).catch(e => {
-	        console.log(e, device);
-	        // (probably) automatic connection failed, remove from 'names' so that user can still connect with browser dialog
-	        names.pop(device.name);
-	    })
+	    characteristicACK = await service.getCharacteristic(CHARACTERISTIC_ACK(0));
+	    console.log("characteristicACK", characteristicACK);
+
 	}
 
 	function connect() {
@@ -120,7 +111,7 @@
 	        "namePrefix": namePrefix
 	    });
 	    let options = {
-	        "optionalServices": [SERVICE_UUID]
+	        "optionalServices": [SERVICE_UUID(SENSOR_SERVICE_ID), SERVICE_UUID(2), SERVICE_UUID(3), SERVICE_UUID(4)]
 	    };
 
 	    // either one of these lines
@@ -150,15 +141,15 @@
 	})*/
 
 	function sendCommand(message) {
-	    var service = services[names[0]];
-	    service.getCharacteristic(CHARACTERISTIC_TX(SENSOR_SERVICE_ID)).then(characteristic => {
-	        console.log("sending message ", message);
-	        characteristic.writeValue(new Uint8Array(message)).then(message => {
-
+	    //service.getCharacteristic(CHARACTERISTIC_TX(SENSOR_SERVICE_ID)).then(characteristic => {
+	    console.log("sending message ", message);
+	    characteristic.writeValue(new Uint8Array(message)).then(message => {
+	        if (message) {
 	            console.log("message", message);
+	        }
 
-	        });
 	    });
+	    //});
 	}
 
 	// TODO
@@ -342,7 +333,7 @@
 	        var note = notes.shift();
 	        var frequency = note[0];
 	        var time = note[1] * 100;
-	        console.log(note, frequency, time);
+	        //console.log(note, frequency, time);
 	        playNote(frequency);
 	        if (notes.length > 0) {
 	            setTimeout(callback, time);
@@ -380,14 +371,42 @@
 	<Measurement ID="5" NameTag="Loudness" UnitType="percent" Equation="[2]*0.001526" Accuracy="0" Maximum="100" MeasType="Loudness" Minimum="0" TypicalMin="0" TypicalMax="50" Precision="1" ShortNameTag="loudness" SymbolTag="ldns" Visible="1"/>
 	</Sensor>
 
+	4a5c0000-0001-0000-0000-5c1e741f1c00 Read (returns 0x2004)
+	4a5c0000-0002-0000-0000-5c1e741f1c00 Write without response
+	4a5c0000-0003-0000-0000-5c1e741f1c00 Write Notify Indicate
+
+	4a5c0001-0002-0000-0000-5c1e741f1c00 Write without response
+	4a5c0001-0003-0000-0000-5c1e741f1c00 Write Notify Indicate
+	4a5c0001-0004-0000-0000-5c1e741f1c00 Read Notify
+	4a5c0001-0005-0000-0000-5c1e741f1c00 Write without Response
+
+	4a5c0002-0002-0000-0000-5c1e741f1c00 Write without response
+	4a5c0002-0003-0000-0000-5c1e741f1c00 Write Notify Indicate
+	4a5c0002-0004-0000-0000-5c1e741f1c00 Read Notify
+	4a5c0002-0005-0000-0000-5c1e741f1c00 Write without Response
+
+	4a5c0003-0002-0000-0000-5c1e741f1c00 Write without response
+	4a5c0003-0003-0000-0000-5c1e741f1c00 Write Notify Indicate
+	4a5c0003-0004-0000-0000-5c1e741f1c00 Read Notify
+	4a5c0003-0005-0000-0000-5c1e741f1c00 Write without Response
+
+	4a5c0004-0002-0000-0000-5c1e741f1c00 Write without response
+	4a5c0004-0003-0000-0000-5c1e741f1c00 Write Notify Indicate
+	4a5c0004-0004-0000-0000-5c1e741f1c00 Read Notify
+	4a5c0004-0005-0000-0000-5c1e741f1c00 Write without Response
+
 	 */
 
 	// TODO
-	function getSensorMeasurement() {
+	// 3, 4, 5 work as parameters
+	// 3 = Temp?
+	// 4 = Brightness?
+	// 5 = Loudness?
+	function getSensorMeasurement(sensor_id) {
 	    //       <Measurement ID="5" Tag="Temperature" UnitGroup="Temperature"/>
 
 	    var sensor_name = "Temperature";
-	    var sensor_id = 3; //measurement_sensor_ids[measurement]
+	    //var sensor_id = 3; //measurement_sensor_ids[measurement]
 	    var service_id = sensor_id + 1
 	        var packet_size = 2; //sensor['total_data_size']
 
@@ -395,6 +414,9 @@
 
 	    //uuid = self._set_uuid(service_id, self.SEND_CMD_CHAR_ID)
 	    var uuid = CHARACTERISTIC_TX(service_id);
+	    //console.log(uuid);
+	    //uuid = "4a5c0001-0002-0000-0000-5c1e741f1c00";
+	    console.log(uuid);
 
 	    var service = services[names[0]];
 	    service.getCharacteristic(uuid).then(characteristic => {
@@ -405,6 +427,44 @@
 
 	        });
 	    });
+
+	    //service.getCharacteristic("4a5c0001-0004-0000-0000-5c1e741f1c00").then(characteristic => {
+	    //    console.log("getting message ");
+	    //    characteristic.readValue().then(message => {
+
+	    //        console.log("message", message);
+
+	    //    });
+	    //});
+
+	}
+
+	function handleData(event) {
+	    console.log("event received", event);
+
+	}
+
+	var characteristicTX = [];
+
+	// id = 1,2,3,4
+	async function test(id) {
+
+	    const uuid = SERVICE_UUID(id);
+	    const uuidRX = CHARACTERISTIC_RX(id);
+	    const uuidTX = CHARACTERISTIC_TX(id);
+
+	    const service0 = await server.getPrimaryService(uuid);
+
+	    const characteristicRX = await service0.getCharacteristic(uuidRX);
+	    characteristicRX.addEventListener('characteristicvaluechanged', handleData);
+
+	    await characteristicRX.startNotifications();
+
+	    characteristicTX[id] = await service0.getCharacteristic(uuidTX);
+
+	    var packet_size = 2; //sensor['total_data_size']
+	    var one_shot_cmd = [GCMD_READ_ONE_SAMPLE, packet_size];
+	    await characteristicTX[id].writeValue(new Uint8Array(one_shot_cmd));
 
 	}
 	
