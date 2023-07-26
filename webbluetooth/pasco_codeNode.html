@@ -19,18 +19,18 @@
 	var namePrefix = "//code.Node";
 
 	const GCMD_CODENODE_CMD = 0x37;
-	const CODENODE_CMD_SET_LED = 0X02;
-	const CODENODE_CMD_SET_LEDS = 0X03;
-	const CODENODE_CMD_SET_SOUND_FREQ = 0X04;
+	const CODENODE_CMD_SET_LED = 0x02;
+	const CODENODE_CMD_SET_LEDS = 0x03;
+	const CODENODE_CMD_SET_SOUND_FREQ = 0x04;
 	const GCMD_CUSTOM_CMD = 0x37
 	    const GCMD_CONTROL_NODE_CMD = 0x37;
 	const CTRLNODE_CMD_DETECT_DEVICES = 2 // Detects which devices are attached
 	    const GCMD_READ_ONE_SAMPLE = 0x05;
-	const GCMD_XFER_BURST_RAM = 0X0E;
-	const GRSP_RESULT = 0XC0; // Generic response packet
+	const GCMD_XFER_BURST_RAM = 0x0E;
+	const GRSP_RESULT = 0xC0; // Generic response packet
 	const GEVT_SENSOR_ID = 0x82; // Get Sensor ID (for AirLink)
 
-	const WIRELESS_RMS_START = [0X37, 0X01, 0X00]; // Rotary Motion?
+	const WIRELESS_RMS_START = [0x37, 0x01, 0x00]; // Rotary Motion?
 
 	// service id
 	const SENSOR_SERVICE_ID = 1
@@ -57,12 +57,7 @@
 	    return "4a5c000" + (sensorId + 1) + "-000" + SEND_ACK_CHAR_ID + "-0000-0000-5c1e741f1c00";
 	}
 
-	function characteristicValueChanged(event, name) {
-	    console.log("characteristicValueChanged", event, name);
 
-	    return;
-
-	}
 	// eg ["GoCube2x2_14FA90", "GoDice_A757B5_B_v04", "GoDice_B7D0A7_K_v04"]
 	var name;
 	var id;
@@ -86,20 +81,19 @@
 
 	    characteristicUNKNOWN = await service.getCharacteristic("4a5c0001-0004-0000-0000-5c1e741f1c00");
 	    console.log("characteristicUNKNOWN", characteristicUNKNOWN);
-	    characteristicUNKNOWN.addEventListener('characteristicvaluechanged', function (event) {
-	        characteristicValueChanged(event);
-	    });
+	    characteristicUNKNOWN.addEventListener('characteristicvaluechanged', handleData);
 	    characteristicUNKNOWN.startNotifications();
 
 	    characteristicRX = await service.getCharacteristic(CHARACTERISTIC_RX(SENSOR_SERVICE_ID));
 	    console.log("characteristicRX", characteristicRX);
-	    characteristicRX.addEventListener('characteristicvaluechanged', function (event) {
-	        characteristicValueChanged(event);
-	    });
+	    characteristicRX.addEventListener('characteristicvaluechanged', handleData);
 	    characteristicRX.startNotifications();
 
 	    characteristicACK = await service.getCharacteristic(CHARACTERISTIC_ACK(0));
 	    console.log("characteristicACK", characteristicACK);
+		
+		// sends event (what?) every 10s
+		startEvents(0);
 
 	}
 
@@ -111,7 +105,9 @@
 	        "namePrefix": namePrefix
 	    });
 	    let options = {
-	        "optionalServices": [SERVICE_UUID(SENSOR_SERVICE_ID), SERVICE_UUID(2), SERVICE_UUID(3), SERVICE_UUID(4)]
+	        //"optionalServices": [SERVICE_UUID(SENSOR_SERVICE_ID), SERVICE_UUID(2), SERVICE_UUID(3), SERVICE_UUID(4)]
+			"optionalServices": ["4a5c0000-0000-0000-0000-5c1e741f1c00", "4a5c0001-0000-0000-0000-5c1e741f1c00", "4a5c0002-0000-0000-0000-5c1e741f1c00", "4a5c0003-0000-0000-0000-5c1e741f1c00", "4a5c0004-0000-0000-0000-5c1e741f1c00", 6157],
+
 	    };
 
 	    // either one of these lines
@@ -418,7 +414,6 @@
 	    //uuid = "4a5c0001-0002-0000-0000-5c1e741f1c00";
 	    console.log(uuid);
 
-	    var service = services[names[0]];
 	    service.getCharacteristic(uuid).then(characteristic => {
 	        console.log("sending message ", one_shot_cmd);
 	        characteristic.writeValue(new Uint8Array(one_shot_cmd)).then(message => {
@@ -438,16 +433,47 @@
 	    //});
 
 	}
+	
+		function match(data, event) {
+
+	    if (data.length < data.event) {
+	        return false;
+	    }
+
+	    for (var i = 0; i < event.length; i++) {
+	        if (data[i] != event[i]) {
+
+	            return false;
+	        }
+	    }
+	    return true;
+	}
+	
+	// command received?
+	const EVENT_OK = [GRSP_RESULT, 0, GCMD_CODENODE_CMD];
+	
+	// events started?
+	const EVENT_OK2 = [GRSP_RESULT, 1, GCMD_CODENODE_CMD];
 
 	function handleData(event) {
-	    console.log("event received", event);
+		var data = new Uint8Array(event.srcElement.value.buffer);
+		
+		if (match(data, EVENT_OK)) {
+			console.log("EVENT_OK");
+		} else if (match(data, EVENT_OK2)) {
+			console.log("EVENT_OK2");
+		} else {
+
+			console.log("unknown event received", data, new Date());
+		}
 
 	}
 
 	var characteristicTX = [];
 
-	// id = 1,2,3,4
-	async function test(id) {
+	// id = 0,1,2,3,4 "work"
+	// id = 0 starts events
+	async function startEvents(id) {
 
 	    const uuid = SERVICE_UUID(id);
 	    const uuidRX = CHARACTERISTIC_RX(id);
