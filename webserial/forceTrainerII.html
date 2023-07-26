@@ -1,0 +1,229 @@
+<html>
+<head>
+<script src="gps.min.js"></script>
+</head>
+<body>
+
+<button onclick="openPort()">Connect to Force Trainer II</Button>
+<button onclick="reader.releaseLock();port.close();">Stop</Button>
+<div id="output"></div>
+<div id="eeg"></div>
+<script>
+
+// needs chrome://flags/#enable-bluetooth-spp-in-serial-api enabled (as of Chrome 116, July 2023)
+
+var port;
+var needConcat = false;
+const decoder = new TextDecoder('UTF-8');
+var data_string = "";
+var reader;
+var namePrefix = "Force Trainer II";
+      let filters = [];
+      // name is "Force Trainer II"
+	  // but can't filter on that with WebSerial
+      filters.push({
+          //"namePrefix": namePrefix,
+		  "bluetoothServiceClassId": "00001101-0000-1000-8000-00805f9b34fb"
+      });
+      let options = {};
+      options.filters = filters;
+
+async function openPort() {
+    try {
+        port = await navigator.serial.requestPort(options)
+            console.log(
+                'Selected Port: ', port.getInfo())
+            await port.open({
+                baudRate: 57600,
+                //dataBits: 8,
+                //stopBits: 1,
+                //parity: 'none',
+                //flowControl: 'none'
+            })
+            console.log(
+                'The selected port has been opened.');
+        readUntilClosed();
+        return true
+    } catch (error) {
+        console.log(
+            'Error Opening Port: ', error.message)
+        return false
+    }
+}
+
+/* Keep reading and displaying the GPS serial data until user clicks stop. */
+async function readUntilClosed() {
+    if (port.readable) {
+	
+	//if (!reader) {
+        reader = port.readable.getReader();
+	//}
+            //try {
+                //while (true) {
+                const {
+                    value,
+                    done
+                } = await reader.read();
+
+                //console.log(value);
+				parse(emitter, value);
+
+                //}
+            //} catch (error) {
+            //    console.log(
+            //        'Error in Reader Loop: ', error.message)
+            //} finally {
+             //   reader.releaseLock()
+            //}
+reader.releaseLock();
+            setTimeout(readUntilClosed, 1000);
+
+    }
+
+}
+
+var emitter = {};
+
+emitter.emit = function(type, data) {
+	//console.log(type, data);
+	
+	if (data.rawEeg) {
+		document.getElementById("eeg").innerHTML = "EEG = " + data.rawEeg;
+	} else {
+	
+		document.getElementById("output").innerHTML = "<br>attention = " + data. attention + "<br>delta = " + data.delta+ "<br>highAlpha = " + data.highAlpha+ "<br>highBeta = " + data.highBeta+ "<br>highGamma = " + data.highGamma+ "<br>lowAlpha = " + data.lowAlpha+ "<br>lowBeta = " + data.lowBeta+ "<br>lowGamma = " + data.lowGamma+ "<br>meditation = " + data.meditation+ "<br>theta = " + data.theta+ "<br>poorSignal = " + data.poorSignal;
+	}
+	
+}
+
+// https://github.com/dkulichkin/mindset-js-binary-parser/blob/master/index.js
+var SYNC_BYTE = 0xaa,
+  EXCODE_BYTE = 0x55,
+  POOR_SIGNAL_BYTE = 0x02,
+  ATTENTION_BYTE = 0x04,
+  MEDITATION_BYTE = 0x05,
+  BLINK_STRENGTH_BYTE = 0x16,
+  RAW_EEG_BYTE = 0x80,
+  ASIC_EEG_BYTE = 0x83;
+
+var rawEegTimeSent = (new Date()).getTime();
+
+var parse = function(emitter, rawData) {
+
+    var payLoadLength, packet, checkSum, checkSumExpected, parsedData, rawEeg, eegTick,
+      payLoad, extendedCodeLevel, code, bytesParsed, dataLength, dataValue;
+
+    for (var i = 0, l = rawData.length; i < l; i++) {
+
+      if (typeof rawData[i] == 'undefined' || typeof rawData[i+1] == 'undefined' || typeof rawData[i+2] == 'undefined') {
+        return;
+      }
+
+      payLoadLength = parseInt(rawData[i+2],10);
+
+      if (rawData[i] == SYNC_BYTE && rawData[i+1] == SYNC_BYTE && payLoadLength < 170) {
+
+        packet = rawData.slice(i, i + payLoadLength + 4);
+        checkSumExpected = packet[packet.length - 1];
+        payLoad = packet.slice(3, -1);
+        checkSum = 0;
+        //payLoad = payLoad.toJSON();
+		//console.log(payLoad, payLoad.buffer);
+        payLoad.forEach(function(e) { checkSum += e });
+        checkSum &= 0xFF;
+        checkSum = ~checkSum & 0xFF;
+
+        if (checkSum == checkSumExpected || true) {
+		
+          bytesParsed = 0;
+          parsedData = {};
+          while (bytesParsed < payLoadLength) {
+            extendedCodeLevel = 0;
+            while( payLoad[bytesParsed] == EXCODE_BYTE ) {
+              extendedCodeLevel++; bytesParsed++;
+            }
+            code = payLoad[bytesParsed++];
+
+            dataLength = code & 0x80 ? payLoad[bytesParsed++] : 1;
+            if (dataLength == 1) {
+              dataValue = payLoad[bytesParsed];
+            }
+            else {
+              dataValue = [];
+              for(var j = 0; j < dataLength; j++ ) {
+                dataValue.push(payLoad[bytesParsed + j]);
+              }
+            }
+            bytesParsed += dataLength;
+
+            if (extendedCodeLevel == 0) {
+              switch (code) {
+                case POOR_SIGNAL_BYTE:
+				  console.log("POOR_SIGNAL_BYTE", dataValue);
+                  parsedData.poorSignal = dataValue;
+                  break;
+                case ATTENTION_BYTE:
+				console.log("ATTENTION_BYTE", dataValue);
+                  parsedData.attention = dataValue;
+                  break;
+                case MEDITATION_BYTE:
+				console.log("MEDITATION_BYTE", dataValue);
+                  parsedData.meditation = dataValue;
+                  break;
+                case BLINK_STRENGTH_BYTE:
+				console.log("BLINK_STRENGTH_BYTE", dataValue);
+                  parsedData.blinkStrength = dataValue;
+                  break;
+                case RAW_EEG_BYTE:
+				//console.log("RAW_EEG_BYTE", dataValue);
+                  //eegTick = (new Date()).getTime()
+                  //if (eegTick - rawEegTimeSent > 200){
+                    rawEegTimeSent = eegTick;
+                    rawEeg = dataValue[0] * 256 + dataValue[1];
+                    rawEeg = rawEeg >=32768 ? rawEeg - 65536 : rawEeg;
+                    parsedData.rawEeg = rawEeg;
+                  //}
+                  break;
+                case ASIC_EEG_BYTE:
+				console.log("ASIC_EEG_BYTE", dataValue);
+                  parsedData.delta = dataValue[0] * 256 * 256 + dataValue[1] * 256 + dataValue[2];
+                  parsedData.theta = dataValue[3] * 256 * 256 + dataValue[4] * 256 + dataValue[5];
+                  parsedData.lowAlpha = dataValue[6] * 256 * 256 + dataValue[7] * 256 + dataValue[8];
+                  parsedData.highAlpha = dataValue[9] * 256 * 256 + dataValue[10] * 256 + dataValue[11];
+                  parsedData.lowBeta = dataValue[12] * 256 * 256 + dataValue[13] * 256 + dataValue[14];
+                  parsedData.highBeta = dataValue[15] * 256 * 256 + dataValue[16] * 256 + dataValue[17];
+                  parsedData.lowGamma = dataValue[18] * 256 * 256 + dataValue[19] * 256 + dataValue[20];
+                  parsedData.highGamma = dataValue[21] * 256 * 256 + dataValue[22] * 256 + dataValue[23];
+                  break;
+                default:
+				console.log("UNKNOWN", code);
+                  break;
+
+              }
+            }
+          }
+
+          if (Object.keys(parsedData).length) {
+            emitter.emit('data', parsedData);
+          }
+
+        } else {
+			console.log("bad checksum", checkSum, checkSumExpected);
+		}
+
+        i = i + payLoadLength + 3;
+      }
+
+    }
+
+  }
+
+
+
+
+</script>
+
+
+
+</body>
+</html>
