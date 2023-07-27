@@ -3,17 +3,202 @@
 
 <head>
 	<meta charset="utf-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>WebHID DualShock 4 Demo</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link rel="stylesheet" href="sony-dualshock4.css">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css"> 
 </head>
 
 <body>
-	<h1>WebHID DualShock 4 Demo</h1>
-	<div> <a href="https://thebitlink.github.io/WebHID-DS4/api/">Library Documentation</a> / <a href="https://github.com/TheBITLINK/WebHID-DS4">GitHub</a> / <a href="https://www.npmjs.com/package/webhid-ds4">NPM Package</a> </div>
-	<div id="app"></div>
-	<script src="sony-dualshock4.js"></script>
-</body>
 
+<button onclick="init()">Connect to SonyDual Shock 4 controller</button>
+<button onclick="sendReport(255,0,0,0,0)">Light Rumble</button>
+<button onclick="sendReport(0,255,0,0,0)">Heavy Rumble</button>
+<button onclick="sendReport(0,0,255,0,0)">Red</button>
+<button onclick="sendReport(0,0,0,255,0)">Green</button>
+<button onclick="sendReport(0,0,0,0,255)">Blue</button>
+<button onclick="sendReport(0,0,0,0,0)">Reset</button>
+
+<div id="device"></div>
+<div id="message"></div>
+
+<script>
+
+// https://github.com/TheBITLINK/WebHID-DS4/blob/master/src/index.ts
+const options = {
+    filters: [
+        // Official Sony Controllers
+        {
+            vendorId: 0x054C,
+            productId: 0x0BA0
+        }, {
+            vendorId: 0x054C,
+            productId: 0x05C4
+        }, {
+            vendorId: 0x054C,
+            productId: 0x09CC
+        }, {
+            vendorId: 0x054C,
+            productId: 0x05C5
+        },
+        // Razer Raiju
+        {
+            vendorId: 0x1532,
+            productId: 0x1000
+        }, {
+            vendorId: 0x1532,
+            productId: 0x1007
+        }, {
+            vendorId: 0x1532,
+            productId: 0x1004
+        }, {
+            vendorId: 0x1532,
+            productId: 0x1009
+        },
+        // Nacon Revol
+        {
+            vendorId: 0x146B,
+            productId: 0x0D01
+        }, {
+            vendorId: 0x146B,
+            productId: 0x0D02
+        }, {
+            vendorId: 0x146B,
+            productId: 0x0D08
+        },
+        // Other third party controllers
+        {
+            vendorId: 0x0F0D,
+            productId: 0x00EE
+        }, {
+            vendorId: 0x7545,
+            productId: 0x0104
+        }, {
+            vendorId: 0x2E95,
+            productId: 0x7725
+        }, {
+            vendorId: 0x11C0,
+            productId: 0x4001
+        }, {
+            vendorId: 0x0C12,
+            productId: 0x57AB
+        }, {
+            vendorId: 0x0C12,
+            productId: 0x0E16
+        }, {
+            vendorId: 0x0F0D,
+            productId: 0x0084
+        }
+    ]
+};
+
+function handleDisconnectedDevice(e) {
+    console.log("Device disconnected: " + e.device.productName);
+    documendata.getElementById("message").innerHTML = "Device disconnected: "+ e.device.productName;
+
+}
+
+function info(variable, value) {
+
+    return "<br>" + variable + " = " + value;
+
+}
+
+function handleInputReport(event) {
+    var t = event.data;
+    var data = new Uint8Array(event.data.buffer);
+
+    var message = "";
+    message += info("leftStickX", data[0]);
+    message += info("leftStickY", data[1]);
+    message += info("rightStickX", data[2]);
+    message += info("rightStickY", data[3]);
+
+    const buttons = data[4];
+    message += info("triangle", !!(128 & buttons));
+    message += info("circle", !!(64 & buttons));
+    message += info("cross", !!(32 & buttons));
+    message += info("square", !!(16 & buttons));
+    const dPad = 15 & buttons;
+    message += info("dPadUp", 7 === dPad || 0 === dPad || 1 === dPad);
+    message += info("dPadRight", 1 === dPad || 2 === dPad || 3 === dPad);
+    message += info("dPadDown", 3 === dPad || 4 === dPad || 5 === dPad);
+    message += info("dPadLeft", 5 === dPad || 6 === dPad || 7 === dPad);
+
+    const r = data[5];
+    message += info("l1", !!(1 & r));
+    message += info("r1", !!(2 & r));
+    message += info("share", !!(16 & r));
+    message += info("options", !!(32 & r));
+    message += info("l3", !!(64 & r));
+    message += info("r3", !!(128 & r));
+    message += info("l2", !!(4 & r));
+    message += info("r2", !!(8 & r));
+    const a = data[6];
+    message += info("l2 (analogue)", data[7]);
+    message += info("r2 (analogue)", data[8]);
+    message += info("playStation", !!(1 & a));
+    message += info("touchPadClick", !!(2 & a));
+    message += info("charging", !!(16 & data[29]));
+    message += info("battery (if charging)", Math.floor(100 * (15 & data[29]) / 11));
+    message += info("battery (if not charging)", Math.min(100, Math.floor(100 * (15 & data[29]) / 8)));
+    message += info("gyroX", t.getUint16(13));
+    message += info("gyroY", t.getUint16(15));
+    message += info("gyroZ", t.getUint16(17));
+    message += info("accelX", t.getInt16(19));
+    message += info("accelY", t.getInt16(21));
+    message += info("accelZ", t.getInt16(23));
+    var touches = [];
+    128 & data[34] || touches.push({
+        touchId: 127 & data[34],
+        x: (15 & data[36]) << 8 | data[35],
+        y: data[37] << 4 | (240 & data[36]) >> 4
+    });
+    128 & data[38] || touches.push({
+        touchId: 127 & data[38],
+        x: (15 & data[40]) << 8 | data[39],
+        y: data[41] << 4 | (240 & data[40]) >> 4
+    });
+
+    message += info("touches", JSON.stringify(touches));
+
+    document.getElementById("message").innerHTML = message;
+
+}
+
+navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+function init() {
+
+    navigator.hid.requestDevice(options).then((devices) => {
+        if (devices.length == 0)
+            return;
+        devices[0].open().then(() => {
+            device = devices[0];
+            console.log("Opened device: " + device.productName, device);
+            document.getElementById("device").innerHTML = "Conected to: " + device.productName;
+            device.addEventListener("inputreport", handleInputReport);
+        });
+    });
+
+}
+
+// rumble_light rumble_heavy
+// intensity 0 - 255
+// rumble for about 4s
+// r b g
+// colour 0 - 255
+function sendReport(rumble_light, rumble_heavy, r, g, b) {
+
+    const t = new Uint8Array(16);
+    t[0] = 5;
+    t[1] = 243;
+    t[4] = rumble_light;
+    t[5] = rumble_heavy;
+    t[6] = r;
+    t[7] = g;
+    t[8] = b;
+
+    device.sendReport(t[0], t.slice(1));
+
+}
+
+</script>
 </html>
