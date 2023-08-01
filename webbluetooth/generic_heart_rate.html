@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web Bluetooth Demo</title>
+  <meta charset="UTF-8">
+
+</head>
+<body>
+  <div class="container">
+    <h2>Generic Bluetooth Heart Rate Monitor Demo</h2>
+    <button id="connectButton" class="button" onclick="discoverDevices()">Connect</button>
+    <button id="disconnectButton" class="button" onclick="disconnectFromDevice()" >Disconnect</button>
+    <button id="forgetButton" class="button" onclick="forgetDevice()" >Forget</button>
+    <button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webbluetooth/generic_heart_rate.html', '_blank').focus();" >Edit on GitHub</button>
+
+
+    <br><br>
+    <div id="result"></div>
+   <br><br>
+    <div id="logging"></div>
+  </div>
+
+  <script>
+  //https://software-dl.ti.com/simplelink/esd/simplelink_cc2640r2_xpack/1.40.00.50/exports/examples/rtos/CC2640R2_LAUNCHXL/ble5apps/heart_rate/README.html
+  // use long version as we want to check the full UUID for re-connecting
+  const HEART_RATE = '0000180d-0000-1000-8000-00805f9b34fb';//0x180d;
+  const HEART_RATE_MEASUREMENT = 0x2a37;
+  
+
+  const namePrefix = "H6M ";
+  let service;
+  let device;
+  const logElement = document.getElementById('logging'); ;
+
+  function log(message) {
+      const logEntry = document.createElement('div');
+      logEntry.classList.add('log-entry');
+      logEntry.innerText = message;
+
+      logElement.appendChild(logEntry);
+  }
+
+  function handleDisconnect() {
+      log('Connection lost. Device disconnected.');
+      document.getElementById('connectButton').disabled = false;
+      document.getElementById('disconnectButton').disabled = true;
+      alert('Connection lost. Device disconnected.');
+  }
+
+  function disconnectFromDevice() {
+      if (device && device.gatt.connected) {
+          device.gatt.disconnect();
+      }
+  }
+
+  function forgetDevice() {
+      if (device) {
+          device.forget();
+      }
+  }
+
+  async function discoverDevices() {
+      log("discoverDevices");
+      let filters = [];
+
+      // filter on EITHER namePrefix OR services
+      //filters.push({
+      //    namePrefix: namePrefix
+      //});
+      filters.push({
+          services: [HEART_RATE]
+      });
+
+      let options = {
+          optionalServices: [HEART_RATE_MEASUREMENT],
+          acceptAllDevices: false
+      }
+      options.filters = filters;
+
+      device = await navigator.bluetooth.requestDevice(options);
+	  
+	  localStorage.setItem('bluetoothDevice', device.name);
+
+      log('> Name:' + device.name);
+      log('> Id:' + device.id);
+      log(device);
+
+      await connectToDevice(device);
+
+      log('Notifications have been started.');
+  }
+
+  async function connectToDevice(device) {
+
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+
+      log('Connecting to GATT Server...');
+      const server = await device.gatt.connect();
+
+      log('Getting Service...');
+      const service = await server.getPrimaryService(HEART_RATE);
+
+      log('Getting Distance Characteristic...');
+      const characteristic = await service.getCharacteristic(HEART_RATE_MEASUREMENT);
+      characteristic.addEventListener('characteristicvaluechanged', handleDistanceChanged);
+
+      log('Enabling notifications...');
+      await characteristic.startNotifications();
+      log('Connected to ' + device.name);
+
+  }
+
+  function handleDistanceChanged(event) {
+      const value = event.target.value;
+      log('Got measurements: ' + value.getUint8(1));
+
+      document.getElementById("result").innerHTML = "Heart rate = " + value.getUint8(1) + " BPM";
+  }
+  function onDisconnected(event) {
+      const device = event.target;
+      log(`Device ${device.name} is disconnected.`);
+  }
+
+  function log(message) {
+      const logEntry = document.createElement('div');
+      logEntry.classList.add('log-entry');
+      logEntry.innerText = message;
+
+      logElement.appendChild(logEntry);
+  }
+
+  // https://docs.google.com/document/d/1RF4D-60cQJWR1LoQeLBxxigrxJwYS8nLOE0qWmBF1eo/edit
+  // try to connect to existing device
+  async function getPermittedBluetoothDevices() {
+	  log("Checking for previously connected devices");
+      let devices = await navigator.bluetooth.getDevices();
+      for (let device0 of devices) {
+		log("Checking device " + device0.name);
+          // Start a scan for each device before connecting to check that they're in
+          // range.
+          let abortController = new AbortController();
+          await device0.watchAdvertisements({
+              signal: abortController.signal
+          });
+          device0.addEventListener('advertisementreceived', async(evt) => {
+              // Stop the scan to conserve power on mobile devices.
+              abortController.abort();
+
+              // Advertisement data can be read from |evt|.
+              let deviceName = evt.name;
+              let uuids = evt.uuids;
+              let appearance = evt.appearance;
+              let pathloss = evt.txPower - evt.rssi;
+              let manufacturerData = evt.manufacturerData;
+              let serviceData = evt.serviceData;
+			  
+			  if (uuids[0] == HEART_RATE && deviceName === localStorage.getItem("bluetoothDevice")) {		
+
+                  log("Found previously connected device " + device0.name);
+
+                  // At this point, we know that the device is in range, and we can attempt
+                  // to connect to it.
+                  device = evt.device;
+                  await connectToDevice(device);
+              } else {
+                  log("Ignoring device " + device0.name + " as it doesn't start with " + namePrefix);
+              }
+          });
+      }
+  }
+
+  getPermittedBluetoothDevices();
+
+  </script>
+</body>
+</html>
