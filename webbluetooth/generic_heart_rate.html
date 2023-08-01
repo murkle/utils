@@ -23,9 +23,8 @@
   <script>
   //https://software-dl.ti.com/simplelink/esd/simplelink_cc2640r2_xpack/1.40.00.50/exports/examples/rtos/CC2640R2_LAUNCHXL/ble5apps/heart_rate/README.html
   // use long version as we want to check the full UUID for re-connecting
-  const HEART_RATE = '0000180d-0000-1000-8000-00805f9b34fb';//0x180d;
+  const HEART_RATE = '0000180d-0000-1000-8000-00805f9b34fb'; //0x180d;
   const HEART_RATE_MEASUREMENT = 0x2a37;
-  
 
   const namePrefix = "H6M ";
   let service;
@@ -57,6 +56,7 @@
       if (device) {
           device.forget();
       }
+      localStorage.setItem('bluetoothDeviceId', null);
   }
 
   async function discoverDevices() {
@@ -78,8 +78,8 @@
       options.filters = filters;
 
       device = await navigator.bluetooth.requestDevice(options);
-	  
-	  localStorage.setItem('bluetoothDevice', device.name);
+
+      localStorage.setItem('bluetoothDeviceId', device.id);
 
       log('> Name:' + device.name);
       log('> Id:' + device.id);
@@ -132,10 +132,10 @@
   // https://docs.google.com/document/d/1RF4D-60cQJWR1LoQeLBxxigrxJwYS8nLOE0qWmBF1eo/edit
   // try to connect to existing device
   async function getPermittedBluetoothDevices() {
-	  log("Checking for previously connected devices");
+      log("Checking for previously connected devices");
       let devices = await navigator.bluetooth.getDevices();
       for (let device0 of devices) {
-		log("Checking device " + device0.name);
+          log("Checking device " + device0.name);
           // Start a scan for each device before connecting to check that they're in
           // range.
           let abortController = new AbortController();
@@ -153,8 +153,8 @@
               let pathloss = evt.txPower - evt.rssi;
               let manufacturerData = evt.manufacturerData;
               let serviceData = evt.serviceData;
-			  
-			  if (uuids[0] == HEART_RATE && deviceName === localStorage.getItem("bluetoothDevice")) {		
+
+              if (uuids[0] == HEART_RATE && evt.device.id === localStorage.getItem("bluetoothDeviceId")) {
 
                   log("Found previously connected device " + device0.name);
 
