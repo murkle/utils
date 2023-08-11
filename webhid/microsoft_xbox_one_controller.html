@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web HID Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css"> 
+</head>
+
+<body>
+	<button onclick="init()">Start listening to events from Xbox One Controller (over USB)</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webhid/microsoft_xbox_one_controller.html', '_blank').focus();" >Edit on GitHub</button>
+
+	<div id="device"></div>
+	<div id="message"></div>
+	<script>
+	let deviceFilter = [{
+		vendorId: 0x045E,
+		productId: 0x02FF
+	}];
+	let requestParams = {
+		filters: deviceFilter
+	};
+
+	function handleDisconnectedDevice(e) {
+		console.log("Device disconnected: " + e.device.productName);
+		document.getElementById("message").innerHTML = "Device disconnected";
+	}
+
+	function handleInputReport(e) {
+		var data = new Uint8Array(e.data.buffer);
+		console.log(data[8]);
+		var xLeft = data[1] + data[0] / 256;
+		var yLeft = data[3] + data[2] / 256;
+		var xRight = data[5] + data[4] / 256;
+		var yRight = data[7] + data[6] / 256;
+		// maybe this works to get separate values
+		// https://github.com/ViGEm/ViGEmBus/issues/40#issuecomment-619889180
+		var ltMinusRt = data[9];
+		// TODO: what is this?
+		var unknown = (data[8] & 128) == 1;
+		var buttonA = !!(data[10] & 1);
+		var buttonB = !!(data[10] & 2);
+		var buttonX = !!(data[10] & 4);
+		var buttonY = !!(data[10] & 8);
+		var buttonLB = !!(data[10] & 16);
+		var buttonRB = !!(data[10] & 32);
+		var buttonView = !!(data[10] & 64);
+		var buttonMenu = !!(data[10] & 128);
+		var stickLeft = !!(data[11] & 1);
+		var stickRight = !!(data[11] & 2);
+		const directions = ["None", "N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+		var direction = directions[data[12]];
+		var message = "";
+		message += "<br/>xLeft = " + xLeft;
+		message += "<br/>yLeft = " + yLeft;
+		message += "<br/>xRight = " + xRight;
+		message += "<br/>yRight = " + yRight;
+		message += "<br/>direction = " + direction;
+		message += "<br/>ltMinusRt = " + ltMinusRt;
+		if(buttonA) message += "<br/>buttonA pressed";
+		if(buttonB) message += "<br/>buttonB pressed";
+		if(buttonX) message += "<br/>buttonX pressed";
+		if(buttonY) message += "<br/>buttonY pressed";
+		if(buttonLB) message += "<br/>buttonLB pressed";
+		if(buttonRB) message += "<br/>buttonRB pressed";
+		if(buttonView) message += "<br/>buttonView pressed";
+		if(buttonMenu) message += "<br/>buttonMenu pressed";
+		if(stickLeft) message += "<br/>stickLeft pressed";
+		if(stickRight) message += "<br/>stickRight pressed";
+		const debug = false;
+		if(debug) {
+			message += "<br/>data[0] = " + data[0];
+			message += "<br/>data[1] = " + data[1];
+			message += "<br/>data[2] = " + data[2];
+			message += "<br/>data[3] = " + data[3];
+			message += "<br/>data[4] = " + data[4];
+			message += "<br/>data[5] = " + data[5];
+			message += "<br/>data[6] = " + data[6];
+			message += "<br/>data[7] = " + data[7];
+			message += "<br/>data[8] = " + data[8];
+			message += "<br/>data[9] = " + data[9];
+			message += "<br/>data[10] = " + data[10];
+			message += "<br/>data[11] = " + data[11];
+			message += "<br/>data[12] = " + data[12];
+			message += "<br/>data[13] = " + data[13];
+			message += "<br/>data[14] = " + data[14];
+		}
+		document.getElementById("message").innerHTML = message;
+	}
+	navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+	function init() {
+		navigator.hid.requestDevice(requestParams).then((devices) => {
+			if(devices.length == 0) return;
+			devices[0].open().then(() => {
+				device = devices[0];
+				console.log("Opened device: " + device.productName, device);
+				document.getElementById("device").innerHTML = device.productName;
+				device.addEventListener("inputreport", handleInputReport);
+			});
+		});
+	}
+
+	</script>
+
+</html>
