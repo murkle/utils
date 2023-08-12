@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web HID Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css">
+</head>
+
+<body>
+	<button onclick="init()">Start listening to events from a Dance Mat</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webhid/dance_mat.html', '_blank').focus();">Edit on GitHub</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	<script>
+	let deviceFilter = [{
+		// Product name 'USB Gamepad '
+		// https://www.amazon.co.uk/dp/B09VCJ5Q6X
+		vendorId: 0x0079,
+		productId: 0x0011
+	}];
+	let requestParams = {
+		filters: deviceFilter
+	};
+
+	function handleDisconnectedDevice(e) {
+		console.log("Device disconnected: " + e.device.productName);
+		document.getElementById("message").innerHTML = "Device disconnected";
+	}
+
+	function handleInputReport(e) {
+		var data = new Uint8Array(e.data.buffer);
+		console.log(data);
+		var center = !!(data[4] & 128);
+		var west = !!(data[5] & 16);
+		var south = !!(data[5] & 32);
+		var north = !!(data[5] & 64);
+		var east = !!(data[5] & 128);
+		var southEast = !!(data[6] & 1);
+		var southWest = !!(data[6] & 2);
+		var select = !!(data[6] & 16);
+		var start = !!(data[6] & 32);
+		
+		var message = "";
+		message += "<br/>North = " + north;
+		message += "<br/>Center = " + center;
+		message += "<br/>East = " + east;
+		message += "<br/>South = " + south;
+		message += "<br/>South East = " + southEast;
+		message += "<br/>South West = " + southWest;
+		message += "<br/>West = " + west;
+		message += "<br/>Start = " + start;
+		message += "<br/>Select = " + select;
+		
+		const debug = false;
+		if(debug) {
+			message += "<br/>data[4] = " + data[4].toString(2);
+			message += "<br/>data[5] = " + data[5].toString(2);
+			message += "<br/>data[6] = " + data[6].toString(2);
+		}
+		document.getElementById("message").innerHTML = message;
+	}
+	navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+	function init() {
+		navigator.hid.requestDevice(requestParams).then((devices) => {
+			if(devices.length == 0) return;
+			devices[0].open().then(() => {
+				device = devices[0];
+				console.log("Opened device: " + device.productName, device);
+				document.getElementById("device").innerHTML = device.productName;
+				device.addEventListener("inputreport", handleInputReport);
+			});
+		});
+	}
+	</script>
+
+</html>
