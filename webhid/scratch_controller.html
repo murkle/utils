@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web HID Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css">
+</head>
+
+<body>
+	<button onclick="init()">Start listening to events from a Scratch Controller</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webhid/scratch_controller.html', '_blank').focus();">Edit on GitHub</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	<script>
+	let deviceFilter = [{
+		// Product name 'Scratch Controller'
+		// product code ELO00530
+		// https://www.robot-advance.com/EN/art-tts-scratch-remote-control-2810.htm
+		vendorId: 0x0c45,
+		productId: 0x7b02
+	}];
+	let requestParams = {
+		filters: deviceFilter
+	};
+
+	function handleDisconnectedDevice(e) {
+		console.log("Device disconnected: " + e.device.productName);
+		document.getElementById("message").innerHTML = "Device disconnected";
+	}
+
+	function handleInputReport(e) {
+		var data = new Uint8Array(e.data.buffer);
+		console.log(data);
+		var south = !!(data[2] & 1);
+		var east = !!(data[2] & 2);
+		var west = !!(data[2] & 4);
+		var north = !!(data[2] & 8);
+		var fire = !!(data[3] & 2);
+		var knob = data[0];
+		
+		var message = "";
+		message += "<br/>North = " + north;
+		message += "<br/>West = " + west;
+		message += "<br/>East = " + east;
+		message += "<br/>South = " + south;
+		message += "<br/>Fire = " + fire;
+		message += "<br/>Knob = " + knob;
+		
+		const debug = false;
+		if(debug) {
+			message += "<br/>data[0] = " + data[4].toString(2);
+			message += "<br/>data[1] = " + data[5].toString(2);
+			message += "<br/>data[2] = " + data[6].toString(2);
+			message += "<br/>data[3] = " + data[6].toString(2);
+		}
+		document.getElementById("message").innerHTML = message;
+	}
+	navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+	function init() {
+		navigator.hid.requestDevice(requestParams).then((devices) => {
+			if(devices.length == 0) return;
+			devices[0].open().then(() => {
+				device = devices[0];
+				console.log("Opened device: " + device.productName, device);
+				document.getElementById("device").innerHTML = device.productName;
+				device.addEventListener("inputreport", handleInputReport);
+			});
+		});
+	}
+	</script>
+
+</html>
