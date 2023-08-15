@@ -92,15 +92,15 @@
 				case 177:
 				case 178:
 				case 179:
-					distance[port] = val;
+					distance[port] = interpolateDistanceData(val);
 					break;
 			}
 		}
 		var message = "";
 		message += "<br/>TiltA = " + tilt[0];
 		message += "<br/>TiltB = " + tilt[1];
-		message += "<br/>DistanceA = " + distance[0];
-		message += "<br/>DistanceB = " + distance[1];
+		message += "<br/>DistanceA = " + distance[0] + "cm";
+		message += "<br/>DistanceB = " + distance[1] + "cm";
 		const debug = true;
 		if(debug) {
 			for(var i = 0; i < 8; i++) {
@@ -121,6 +121,75 @@
 				device.addEventListener("inputreport", handleInputReport);
 			});
 		});
+	}
+	// https://github.com/gbin/WeDoMore/blob/master/wedo/distance.py
+	const RAW_MEASURES = {
+		210: 46,
+		208: 39,
+		207: 34,
+		206: 32,
+		205: 30.5,
+		204: 29,
+		203: 27,
+		202: 26,
+		201: 25,
+		200: 24.5,
+		199: 23.5,
+		198: 22.5,
+		197: 22,
+		196: 21.5,
+		195: 20,
+		194: 19.5,
+		193: 18,
+		192: 17.5,
+		191: 17,
+		180: 15,
+		170: 13,
+		160: 12.5,
+		150: 11,
+		140: 10.5,
+		130: 10,
+		120: 9.5,
+		100: 7.5,
+		71: 6.5,
+		70: 6,
+		69: 5.3,
+		68: 0
+	};
+	const RAW_MEASURES_KEYS = Object.keys(RAW_MEASURES).map(Number).sort((a, b) => a - b);
+
+	function bisectLeft(array, value) {
+		let low = 0,
+			high = array.length;
+		while(low < high) {
+			let mid = Math.floor((low + high) / 2);
+			if(array[mid] < value) {
+				low = mid + 1;
+			} else {
+				high = mid;
+			}
+		}
+		return low;
+	}
+
+	function interpolateDistanceData(raw) {
+		let leftIndex = bisectLeft(RAW_MEASURES_KEYS, raw) - 1;
+		if(leftIndex < 0) {
+			leftIndex = 0;
+		}
+		let rightIndex = leftIndex;
+		if(leftIndex !== RAW_MEASURES_KEYS.length - 1) {
+			rightIndex = leftIndex + 1;
+		}
+		let left = RAW_MEASURES_KEYS[leftIndex];
+		if(left > raw) {
+			return RAW_MEASURES[RAW_MEASURES_KEYS[leftIndex]];
+		}
+		let right = RAW_MEASURES_KEYS[rightIndex];
+		let mright = RAW_MEASURES[right];
+		let mleft = RAW_MEASURES[left];
+		let addup = mright !== mleft ? ((raw - left) / (right - left)) * (mright - mleft) : 0;
+		return mleft + addup;
 	}
 	</script>
 
