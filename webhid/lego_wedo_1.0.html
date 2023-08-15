@@ -34,7 +34,7 @@
 		console.log("Device disconnected: " + e.device.productName);
 		document.getElementById("message").innerHTML = "Device disconnected";
 	}
-	// https://github.com/gbin/WeDoMore/blob/master/wedo/motor.py#L1
+	// https://github.com/itdaniher/WeDoMore/blob/master/wedo/motor.py#L1
 	function processMotorValues(value) {
 		//Check to make sure motor values are sane."""
 		if(0 < value && value <= 100) {
@@ -53,7 +53,7 @@
 		var str = ("0000000" + num.toString(2));
 		return "0b" + str.slice(str.length - 8);
 	}
-	// https://github.com/gbin/WeDoMore/blob/master/wedo/tilt.py#L3
+	// https://github.com/itdaniher/WeDoMore/blob/master/wedo/tilt.py#L3
 	function processTilt(raw_tilt_value) {
 		// Use a series of elif/value-checks to process the tilt sensor data.
 		if(10 <= raw_tilt_value && raw_tilt_value <= 40) {
@@ -74,9 +74,9 @@
 		// https://github.com/gbin/WeDoMore/blob/master/wedo/__init__.py
 		// sensor IDs
 		// each port (A, B) can have any of these devices plugged in 
-		// TILTSENSOR = (38, 39)
-		// DISTANCESENSOR = (176, 177, 178, 179)
-		// MOTOR = (0, 1, 2, 3, 238, 239)
+		// TILTSENSOR = (38, 39, 40)
+		// DISTANCESENSOR = (176, 177, 178, 179, 180)
+		// MOTOR = (0, 1, 2, 3, 99, 100, 101, 102, 203, 204, 238, 239, 240)
 		var tilt = ["NONE", "NONE"];
 		var distance = [NaN, NaN];
 		for(port = 0; port < 2; port++) {
@@ -86,12 +86,14 @@
 			switch (data[port * 2 + 3]) {
 				case 38:
 				case 39:
+				case 40:
 					tilt[port] = processTilt(val);
 					break;
 				case 176:
 				case 177:
 				case 178:
 				case 179:
+				case 180:
 					distance[port] = interpolateDistanceData(val);
 					break;
 			}
@@ -122,7 +124,7 @@
 			});
 		});
 	}
-	// https://github.com/gbin/WeDoMore/blob/master/wedo/distance.py
+	// https://github.com/itdaniher/WeDoMore/blob/master/wedo/distance.py
 	const RAW_MEASURES = {
 		210: 46,
 		208: 39,
