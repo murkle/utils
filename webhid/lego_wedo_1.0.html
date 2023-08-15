@@ -35,6 +35,7 @@
 		document.getElementById("message").innerHTML = "Device disconnected";
 	}
 	// https://github.com/itdaniher/WeDoMore/blob/master/wedo/motor.py#L1
+	// https://github.com/itdaniher/WeDoMore/blob/master/LICENSE
 	function processMotorValues(value) {
 		//Check to make sure motor values are sane."""
 		if(0 < value && value <= 100) {
@@ -54,6 +55,7 @@
 		return "0b" + str.slice(str.length - 8);
 	}
 	// https://github.com/itdaniher/WeDoMore/blob/master/wedo/tilt.py#L3
+	// https://github.com/itdaniher/WeDoMore/blob/master/LICENSE
 	function processTilt(raw_tilt_value) {
 		// Use a series of elif/value-checks to process the tilt sensor data.
 		if(10 <= raw_tilt_value && raw_tilt_value <= 40) {
@@ -125,6 +127,7 @@
 		});
 	}
 	// https://github.com/itdaniher/WeDoMore/blob/master/wedo/distance.py
+	// https://github.com/itdaniher/WeDoMore/blob/master/LICENSE
 	const RAW_MEASURES = {
 		210: 46,
 		208: 39,
