@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web HID Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css">
+</head>
+
+<body>
+	<button onclick="init()">Connect to Lego WeDo 1.0</button>
+	<button onclick="setMotors(-50,-50)">Set motors to Anti-clockwise (50%)</button>
+	<button onclick="setMotors(-100,-100)">Set motors to Anti-clockwise (100%)</button>
+	<button onclick="setMotors(50,50)">Set motors to Clockwise (50%)</button>
+	<button onclick="setMotors(100,100)">Set motors to Clockwise (100%)</button>
+	<button onclick="setMotors(50,0)">Set motor A to Clockwise (50%)</button>
+	<button onclick="setMotors(0,50)">Set motor B to Clockwise (50%)</button>
+	<button onclick="setMotors(0,0)">Stop motors</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webhid/lego_wedo_1.0.html', '_blank').focus();">Edit on GitHub</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	<script>
+	let deviceFilter = [{
+		// Product name 'LEGO USB Hub V1.00'
+		// WeDo 1.0
+		vendorId: 0x0694,
+		productId: 0x0003
+	}];
+	let requestParams = {
+		filters: deviceFilter
+	};
+
+	function handleDisconnectedDevice(e) {
+		console.log("Device disconnected: " + e.device.productName);
+		document.getElementById("message").innerHTML = "Device disconnected";
+	}
+	// https://github.com/gbin/WeDoMore/blob/master/wedo/motor.py#L1
+	function processMotorValues(value) {
+		//Check to make sure motor values are sane."""
+		if(0 < value && value <= 100) {
+			return (value + 27) & 0xff;
+		} else if(-100 <= value && value < 0) {
+			return (value - 27) & 0xff;
+		}
+		return 0;
+	}
+	// a and b between -100 and 100
+	function setMotors(a, b) {
+		device.sendReport(0, new Uint8Array([64, processMotorValues(a), processMotorValues(b), 0, 0, 0, 0, 0]));
+	}
+	// pad to 8 binary digits
+	function binary8(num) {
+		var str = ("0000000" + num.toString(2));
+		return "0b" + str.slice(str.length - 8);
+	}
+	// https://github.com/gbin/WeDoMore/blob/master/wedo/tilt.py#L3
+	function processTilt(raw_tilt_value) {
+		// Use a series of elif/value-checks to process the tilt sensor data.
+		if(10 <= raw_tilt_value && raw_tilt_value <= 40) {
+			return "BACK";
+		} else if(60 <= raw_tilt_value && raw_tilt_value <= 90) {
+			return "RIGHT";
+		} else if(170 <= raw_tilt_value && raw_tilt_value <= 190) {
+			return "FORWARD";
+		} else if(220 <= raw_tilt_value && raw_tilt_value <= 240) {
+			return "LEFT";
+		}
+		return "FLAT"
+	}
+
+	function handleInputReport(e) {
+		var data = new Uint8Array(e.data.buffer);
+		//console.log(data);
+		// https://github.com/gbin/WeDoMore/blob/master/wedo/__init__.py
+		// sensor IDs
+		// each port (A, B) can have any of these devices plugged in 
+		// TILTSENSOR = (38, 39)
+		// DISTANCESENSOR = (176, 177, 178, 179)
+		// MOTOR = (0, 1, 2, 3, 238, 239)
+		var tilt = ["NONE", "NONE"];
+		var distance = [NaN, NaN];
+		for(port = 0; port < 2; port++) {
+			// 2 or 4
+			var val = data[port * 2 + 2];
+			// 3 or 5
+			switch (data[port * 2 + 3]) {
+				case 38:
+				case 39:
+					tilt[port] = processTilt(val);
+					break;
+				case 176:
+				case 177:
+				case 178:
+				case 179:
+					distance[port] = val;
+					break;
+			}
+		}
+		var message = "";
+		message += "<br/>TiltA = " + tilt[0];
+		message += "<br/>TiltB = " + tilt[1];
+		message += "<br/>DistanceA = " + distance[0];
+		message += "<br/>DistanceB = " + distance[1];
+		const debug = true;
+		if(debug) {
+			for(var i = 0; i < 8; i++) {
+				message += "<br/>data[" + i + "] = " + binary8(data[i]) + " = " + data[i];
+			}
+		}
+		document.getElementById("message").innerHTML = message;
+	}
+	navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+	function init() {
+		navigator.hid.requestDevice(requestParams).then((devices) => {
+			if(devices.length == 0) return;
+			devices[0].open().then(() => {
+				device = devices[0];
+				console.log("Opened device: " + device.productName, device);
+				document.getElementById("device").innerHTML = device.productName;
+				device.addEventListener("inputreport", handleInputReport);
+			});
+		});
+	}
+	</script>
+
+</html>
