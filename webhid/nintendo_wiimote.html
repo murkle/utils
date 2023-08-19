@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web HID Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css">
+</head>
+
+<body> See <a href="https://www.julianloehr.de/educational-work/hid-wiimote/">here</a> for drivers. You also need to go to Device Manager -> Human Interface Devices -> WiiMote and change the driver to Bluetooth HID Device. <br>Also you need to add and remove the device (and repeat that step) each time the WiiMote loses connection.<br><br>
+	<button onclick="init()">Connect to Nintendo WiiMote</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webhid/nintendo_wiimote.html', '_blank').focus();">Edit on GitHub</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	<script>
+	let deviceFilter = [{
+		// Product name 'Nintendo RVL-CNT-01'
+		vendorId: 0x057E,
+		productId: 0x0306
+	}];
+	let requestParams = {
+		filters: deviceFilter
+	};
+
+	function handleDisconnectedDevice(e) {
+		console.log("Device disconnected: " + e.device.productName);
+		document.getElementById("message").innerHTML = "Device disconnected";
+	}
+	// pad to 8 binary digits
+	function binary8(num) {
+		var str = ("0000000" + num.toString(2));
+		return "0b" + str.slice(str.length - 8);
+	}
+
+	function handleInputReport(e) {
+		var data = new Uint8Array(e.data.buffer);
+		console.log(data);
+		var directions = ["None", "W", "E", "Impossible", "S", "SW", "SE", "Impossible", "N", "NW", "NE"];
+		var message = "";
+		var direction = directions[data[0] & 15];
+		var buttonA = !!(data[1] & 8);
+		var buttonB = !!(data[1] & 4);
+		var buttonPlus = !!(data[0] & 16);
+		var buttonMinus = !!(data[1] & 16);
+		var buttonHome = !!(data[1] & 128);
+		var buttonOne = !!(data[1] & 2);
+		var buttonTwo = !!(data[1] & 1);
+		message += "<br/>Direction = " + direction;
+		message += "<br/>Button A = " + buttonA;
+		message += "<br/>Button B = " + buttonB;
+		message += "<br/>button Plus = " + buttonPlus;
+		message += "<br/>Button Minus = " + buttonMinus;
+		message += "<br/>Button Home = " + buttonHome;
+		message += "<br/>Button 1 = " + buttonOne;
+		message += "<br/>Button 2 = " + buttonTwo;
+		const debug = true;
+		if(debug) {
+			for(var i = 0; i < 8; i++) {
+				message += "<br/>data[" + i + "] = " + binary8(data[i]) + " = " + data[i];
+			}
+		}
+		document.getElementById("message").innerHTML = message;
+	}
+	navigator.hid.addEventListener("disconnect", handleDisconnectedDevice);
+
+	function init() {
+		navigator.hid.requestDevice(requestParams).then((devices) => {
+			if(devices.length == 0) return;
+			devices[0].open().then(() => {
+				device = devices[0];
+				console.log("Opened device: " + device.productName, device);
+				document.getElementById("device").innerHTML = device.productName;
+				device.addEventListener("inputreport", handleInputReport);
+			});
+		});
+	}
+	</script>
+
+</html>
