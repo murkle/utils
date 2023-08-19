@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web Serial Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css">
+</head>
+
+<body>
+	<br> Scan this barcode to put the HoneyWell Voyager 1400g barcode scanner into CDC-ACM mode (so it can be accessed with WebSerial) <img src="data:image/png;base64,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"></img>
+	<button id="SerialConnectButton" type="button" disabled>Connect to Voyager 1400g barcode scanner</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webserial/honeywell_barcode_scanner.html', '_blank').focus();">Edit on GitHub</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	</div>
+	</div>
+</body>
+<script>
+const connectButton = document.getElementById('SerialConnectButton');
+let port;
+if('serial' in navigator) {
+	connectButton.addEventListener('click', function() {
+		if(port) {
+			console.log('Disconnected from Serial Port');
+			document.getElementById("message").innerHTML = "Disconnected from Serial Port";
+			port.close();
+			port = undefined;
+			connectButton.innerText = 'Connect';
+		} else {
+			connectButton.innerText = 'Disconnect';
+			getReader();
+		}
+	});
+	connectButton.disabled = false;
+} else {
+	const error = document.createElement('p');
+	error.innerHTML = '<p>Support for Serial Web API not enabled. Please use Google Chrome</p>';
+}
+async function getReader() {
+	port = await navigator.serial.requestPort({
+		filters: [{
+			usbVendorId: 0x0C2E,
+			usbProductId: 0x0b8a // with CDC-ACM mode, 0x0b81 is USB-HID mode
+		}, ],
+	});
+	// baud rate doesn't seem to matter (?)
+	await port.open({
+		baudRate: [57600]
+	});
+	connectButton.innerText = 'Disconnect';
+	console.log("Connected using Web Serial API !", port);
+	document.getElementById("message").innerHTML = "Device connected <br>" + JSON.stringify(port.getInfo());
+	const appendStream = new WritableStream({
+		write(chunk) {
+			console.log("chunk", chunk);
+			document.getElementById("message").innerHTML = document.getElementById("message").innerHTML + "<br>" + chunk;
+		}
+	});
+	port.readable.pipeThrough(new TextDecoderStream()).pipeTo(appendStream);
+}
+</script>
+
+</html>
