@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web Serial Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css">
+</head>
+
+<body>
+	<button id="SerialConnectButton" type="button" disabled>Connect to Geiger Counter (with Rad Pro firmware)</button>
+	<button id="tubePulseCount" type="button" onclick="tubePulseCount()">GET tubePulseCount</button>
+	<button id="deviceId" type="button" onclick="deviceId()">GET deviceId</button>
+	<button id="deviceTemperature" type="button" onclick="deviceTemperature()">GET deviceTemperature</button>
+	<button id="deviceTime" type="button" onclick="deviceTime()">GET deviceTime</button>
+	<button id="tubeTime" type="button" onclick="tubeTime()">GET tubeTime</button>
+	<button id="tubeRate" type="button" onclick="tubeRate()">GET tubeRate</button>
+	<button id="tubeDutyCycle" type="button" onclick="tubeDutyCycle()">GET tubeDutyCycle</button>
+	<button id="tubeConversionFactor" type="button" onclick="tubeConversionFactor()">GET tubeConversionFactor</button>
+	<button id="tubeDeadTime" type="button" onclick="tubeDeadTime()">GET tubeDeadTime</button>
+	<button id="tubeDeadTimeCompensation" type="button" onclick="tubeDeadTimeCompensation()">GET tubeDeadTimeCompensation</button>
+	<button id="entropy" type="button" onclick="entropy()">GET entropy</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webserial/geiger_counter_radpro.html', '_blank').focus();">Edit on GitHub</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	</div>
+	</div>
+</body>
+<script>
+const connectButton = document.getElementById('SerialConnectButton');
+let port;
+let writer;
+let buffer = "";
+if('serial' in navigator) {
+	connectButton.addEventListener('click', function() {
+		if(port) {
+			console.log('Disconnected from Serial Port');
+			document.getElementById("message").innerHTML = "Disconnected from Serial Port";
+			port.close();
+			port = undefined;
+			connectButton.innerText = 'Connect';
+		} else {
+			connectButton.innerText = 'Disconnect';
+			getReader();
+		}
+	});
+	connectButton.disabled = false;
+} else {
+	const error = document.createElement('p');
+	error.innerHTML = '<p>Support for Serial Web API not enabled. Please use Google Chrome</p>';
+}
+async function getReader() {
+	// https://github.com/Gissio/radpro/blob/main/docs/comm.md
+	port = await navigator.serial.requestPort({
+		filters: [{
+			usbVendorId: 0x1A86,
+			usbProductId: 0x7523
+		}, ],
+	});
+	await port.open({
+		baudRate: [115200]
+	});
+	connectButton.innerText = 'Disconnect';
+	console.log("Connected using Web Serial API !", port);
+	document.getElementById("message").innerHTML = "Device connected <br>" + JSON.stringify(port.getInfo());
+	const appendStream = new WritableStream({
+		write(chunk) {
+			console.log("chunk", chunk, chunk.length);
+			buffer += chunk;
+			// collect chunks until we get a newline \n
+			if(buffer.endsWith("\n")) {
+				document.getElementById("message").innerHTML = document.getElementById("message").innerHTML + "<br>" + buffer;
+				buffer = "";
+			}
+		}
+	});
+	// set up reading
+	port.readable.pipeThrough(new TextDecoderStream()).pipeTo(appendStream);
+	// set up writing
+	const textEncoder = new TextEncoderStream();
+	const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+	writer = textEncoder.writable.getWriter();
+}
+async function deviceId() {
+	sendCommand("GET deviceId");
+}
+async function deviceTemperature() {
+	sendCommand("GET deviceTemperature");
+}
+async function deviceTime() {
+	sendCommand("GET deviceTime");
+}
+async function tubeTime() {
+	sendCommand("GET tubeTime");
+}
+async function tubePulseCount() {
+	sendCommand("GET tubePulseCount");
+}
+async function tubeRate() {
+	sendCommand("GET tubeRate");
+}
+async function tubeDutyCycle() {
+	sendCommand("GET tubeDutyCycle");
+}
+async function tubeConversionFactor() {
+	sendCommand("GET tubeConversionFactor");
+}
+async function tubeDeadTime() {
+	sendCommand("GET tubeDeadTime");
+}
+async function tubeDeadTimeCompensation() {
+	sendCommand("GET tubeDeadTimeCompensation");
+}
+async function entropy() {
+	sendCommand("GET entropy");
+}
+async function tubePulseCount() {
+	sendCommand("GET tubePulseCount");
+}
+async function sendCommand(command) {
+	await writer.write(command + "\n");
+	console.log("send command " + command);
+}
+</script>
+
+</html>
