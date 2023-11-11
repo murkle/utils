@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Web Serial Demo</title>
+	<meta charset="UTF-8">
+	<link rel="stylesheet" href="https://unpkg.com/mvp.css">
+</head>
+
+<body>
+	<button id="SerialConnectButton" type="button" disabled>Connect to Web Serial device</button>
+	<button id="editOnGitHub" class="button" onclick="window.open('https://github.com/murkle/utils/blob/master/webserial/info.html', '_blank').focus();">Edit on GitHub</button>
+	<div id="device"></div>
+	<div id="message"></div>
+	</div>
+	</div>
+</body>
+<script>
+const connectButton = document.getElementById('SerialConnectButton');
+let port;
+let writer;
+let buffer = "";
+if('serial' in navigator) {
+	connectButton.addEventListener('click', function() {
+		if(port) {
+			console.log('Disconnected from Serial Port');
+			document.getElementById("message").innerHTML = "Disconnected from Serial Port";
+			port.close();
+			port = undefined;
+			connectButton.innerText = 'Connect';
+		} else {
+			connectButton.innerText = 'Disconnect';
+			getReader();
+		}
+	});
+	connectButton.disabled = false;
+} else {
+	const error = document.createElement('p');
+	error.innerHTML = '<p>Support for Serial Web API not enabled. Please use Google Chrome</p>';
+}
+async function getReader() {
+	// https://github.com/Gissio/radpro/blob/main/docs/comm.md
+	port = await navigator.serial.requestPort({
+		filters: [],
+	});
+	await port.open({
+		baudRate: [115200]
+	});
+	connectButton.innerText = 'Disconnect';
+	console.log("Connected using Web Serial API !", port);
+	var info = port.getInfo();
+	document.getElementById("message").innerHTML = 'Device connected <br>"usbProductId": 0x' + info.usbProductId.toString(16) + ',<br>"usbVendorId": 0x' + info.usbVendorId.toString(16);
+	
+}
+
+</script>
+
+</html>
