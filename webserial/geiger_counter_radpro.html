@@ -53,9 +53,14 @@ async function getReader() {
 	// https://github.com/Gissio/radpro/blob/main/docs/comm.md
 	port = await navigator.serial.requestPort({
 		filters: [{
-			usbVendorId: 0x1A86,
-			usbProductId: 0x7523
-		}, ],
+			usbVendorId: 0x1A86, // QinHeng Electronics
+			usbProductId: 0x7522 // CH340 serial converter
+		},
+{
+			usbVendorId: 0x1A86, // QinHeng Electronics
+			usbProductId: 0x7523 // CH340 serial converter
+		},
+		],
 	});
 	await port.open({
 		baudRate: [115200]
@@ -80,6 +85,8 @@ async function getReader() {
 	const textEncoder = new TextEncoderStream();
 	const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
 	writer = textEncoder.writable.getWriter();
+	// set current time
+	sendCommand("SET deviceTime " + Math.round(Date.now()/1000));
 }
 async function deviceId() {
 	sendCommand("GET deviceId");
