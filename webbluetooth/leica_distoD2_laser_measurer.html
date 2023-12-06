@@ -113,11 +113,14 @@
   }
 
   function handleDistanceChanged(event) {
-      const value = event.target.value;
-      log('Got distance: ' + value.getFloat32(0, true));
-
-      document.getElementById("result").innerHTML = "Distance = " + value.getFloat32(0, true).toFixed(4) + " m";
-  }
+  const value = event.target.value;
+  const measuredDistance = value.getFloat32(0, true);
+  const distanceInFeet = measuredDistance * 3.28084; // Convert meters to feet
+  const distanceInHundredths = distanceInFeet * 100; // Convert feet to hundredths of a foot
+  document.getElementById("result").innerHTML =
+    "Distance = " + distanceInHundredths.toFixed(2) + " hundredths of a foot";
+}
+    
   function onDisconnected(event) {
       const device = event.target;
       log(`Device ${device.name} is disconnected.`);
