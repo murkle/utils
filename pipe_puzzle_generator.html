@@ -1,0 +1,231 @@
+<html>
+<head>
+</head>
+<body>
+
+
+ <textarea id="openscad" name="openscad" rows="50" cols="80">
+ 
+ // Define the parameters for the pipe
+pipe_radius = 3;
+segment_length = 10;
+bend_radius = 10; // Include extra room for the bend itself
+square_size = 40; // Size of each square in mm
+
+// Define a module for the straight segments
+module straight_segment(length, pipe_radius) {
+    cylinder(h=length, r=pipe_radius, center=false, $fn=50);
+}
+
+// Define a module for the quarter-torus
+module quarter_torus(bend_radius, pipe_radius) {
+    rotate([90, 0, 0]) // Rotate to start bending upwards
+    translate([bend_radius, 0, 0])
+    rotate_extrude(angle=90, $fn=50)
+    translate([bend_radius, 0, 0])
+    circle(r=pipe_radius, $fn=50);
+}
+
+// Assemble the pipe with bends and straight segments
+module bend(pipe_radius, segment_length, bend_radius) {
+union() {
+    // First segment
+    straight_segment(segment_length, pipe_radius);
+    
+    // First bend
+    translate([-2*bend_radius, 0, segment_length])
+    quarter_torus(bend_radius, pipe_radius);
+
+    // Second segment
+    translate([-bend_radius-segment_length, 0, segment_length + bend_radius ])
+    rotate([0, 90, 0])
+    straight_segment(segment_length, pipe_radius);
+
+    }
+}
+ </textarea>
+
+<script>
+
+function print(s) {
+
+document.getElementById("openscad").innerHTML += s + "\n";
+
+}
+
+function draw(piece) {
+
+
+switch(piece) {
+
+
+
+case 0: // bend top-left, bend bottom-right
+print("rotate([90,0,90])");
+print("translate([-20,0,-20])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+print("rotate([90,0,-90])");
+print("translate([20,0,-20])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+break;
+
+case 1: // bed top-right, bend bottom-left
+
+print("rotate([90,0,0])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+print("rotate([90,0,180])");
+print("translate([0,0,-square_size])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+break;
+
+case 3: // bend bottom-left + 2 straights
+case 13: // bend bottom-left + 2 straights
+print("rotate([90,0,0])");
+print("translate([-segment_length*0 - 0*bend_radius,0,0])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,90])");
+print("translate([-segment_length*2,0,-segment_length - bend_radius])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,180])");
+print("translate([0,0,-square_size])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+break;
+
+case 4: // bend bottom-left + 2 straights
+case 14: // bend bottom-left + 2 straights
+print("rotate([90,0,90])");
+print("translate([-square_size/2,0,-square_size/2])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,180])");
+print("translate([0,0,-square_size])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,270])");
+print("translate([square_size/2,0,-square_size/2])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+break;
+
+case 5: // bend top-left + 2 straights
+case 15: // bend top-left + 2 straights
+print("rotate([90,0,90])");
+print("translate([-20,0,5])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,180])");
+print("translate([0,0,-15])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,90])");
+print("translate([-square_size/2,0,-square_size/2])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+break;
+
+case 6: // bend top-right + 2 straights
+case 16: // bend top-right + 2 straights
+print("rotate([90,0,90])");
+print("translate([-20,0,5])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,180])");
+print("translate([0,0,-40])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,0])");
+print("translate([0,0,0])");
+print("bend(pipe_radius,segment_length,bend_radius);");
+break;
+
+case 7: // long straight N/S + 2 straights
+print("rotate([90,0,90])");
+print("translate([-20,0,-20])");
+print("straight_segment(4*segment_length, pipe_radius);");
+
+print("rotate([90,0,0])");
+print("translate([0,0,0])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,0])");
+print("translate([0,0,25])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+break;
+
+case 8: // long straight E/W + 2 straights
+print("rotate([90,0,0])");
+print("translate([-0,0,-0])");
+print("straight_segment(4*segment_length, pipe_radius);");
+
+print("rotate([90,0,90])");
+print("translate([-20,0,5])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+print("rotate([90,0,90])");
+print("translate([-20,0,-20])");
+print("straight_segment(1.5*segment_length, pipe_radius);");
+
+break;
+
+}
+
+
+}
+
+var boardSize = 5;
+
+// hard-coded version of original puzzle 
+// https://khuong.uk/Pictures/puzzle/metal/original/Rechner%20Gross%20Jean%20Claude%20Constantin.jpg
+// https://www.youtube.com/watch?v=u5Nv4WAkcw8
+// by Nikolay Avilov, a mathematics teacher from Russia.
+var board = [[14,4,3,8,13],[7,3,1,0,7],[7,1,1,0,7],[6,7,0,0,3],[16,5,5,8,15]];
+
+Array.prototype.random = function () {
+  return this[Math.floor((Math.random()*this.length))];
+}
+
+// all pieces
+// TODO: maybe add 2 (4 straights)
+var piecesAll = [0,1,3,4,5,6,7,8];
+var piecesLeft = [4,6,7];
+var piecesRight = [3,5,7];
+var piecesTop = [3,4,8];
+var piecesBottom = [5,6,8];
+
+
+
+for (var i = 0 ; i < boardSize ; i++) {
+for (var j = 0 ; j < boardSize ; j++) {
+
+	var pieces = piecesAll;
+	if (i == 0) {
+		pieces = piecesTop;
+	} else if (i == boardSize - 1) {
+		pieces = piecesBottom;
+	} else if (j == 0) {
+		pieces = piecesLeft;
+	} else if (j == boardSize - 1) {
+		pieces = piecesRight;
+	} 
+
+	var piece = board[i][j];
+	if (piece < 10) {
+		// not a coner so we can pick any
+		// omit this line to get original puzzle as designed
+		piece = pieces.random();
+		board[i][j] = piece;
+	
+	}
+	print("translate([" + (i) + "*square_size," + (j) + "*square_size,0]) {");
+	draw(piece);
+	print("}");
+
+}
+}
+
+
+
+</script>
+</body>
+</html>
